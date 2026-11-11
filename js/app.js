@@ -142,8 +142,9 @@
     document.addEventListener('pointerlockchange', hint);
 
     function collide(f) {
-      let nx = f.x, ny = -f.z; const r = 0.4;
+      let nx = f.x, ny = -f.z; const r = 0.4, feet = f.y - 1.65;
       for (const c of PQ.colliders) {
+        if (c.length > 4 && feet < c[4] - 1) continue;          // 高处的栏板不挡地面上的人
         const qx = Math.max(c[0], Math.min(nx, c[1])), qy = Math.max(c[2], Math.min(ny, c[3]));
         const dx = nx - qx, dy = ny - qy, d2 = dx * dx + dy * dy;
         if (d2 >= r * r) continue;
@@ -152,6 +153,9 @@
       }
       f.x = Math.max(-500, Math.min(500, nx)); f.z = Math.max(-500, Math.min(500, -ny));
     }
+    // 台阶、平台等高处表面：surfaceAt 返回脚下可踩的最高表面；blockedAt 判断前方是否是迈不上去的实心台阶
+    function surfaceAt(X, Y, feet) { let h = -1e9; for (const s of PQ.surfaces) if (X >= s[0] && X <= s[1] && Y >= s[2] && Y <= s[3] && s[4] <= feet + 0.55 && s[4] > h) h = s[4]; return h; }
+    function blockedAt(X, Y, feet) { for (const s of PQ.surfaces) if (s[5] && X >= s[0] && X <= s[1] && Y >= s[2] && Y <= s[3] && s[4] > feet + 0.55) return true; return false; }
     function update(dt) {
       const ax = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), az = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
       const arX = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0), arY = (keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0);
@@ -174,8 +178,8 @@
           f.y = Math.max(PQ.heightAt(f.x, -f.z) + 0.6, Math.min(600, f.y));
         } else {
           let vx = -sy * mz + cy * ax, vz = -cy * mz - sy * ax; const l = Math.hypot(vx, vz);
-          if (l > 0) { const v = (fast ? 11 : 4.6) * dt / l; f.x += vx * v; f.z += vz * v; collide(f); }
-          const g = PQ.heightAt(f.x, -f.z) + 1.65;
+          if (l > 0) { const v = (fast ? 11 : 4.6) * dt / l, ox = f.x, oz = f.z; f.x += vx * v; f.z += vz * v; collide(f); if (blockedAt(f.x, -f.z, f.y - 1.65)) { f.x = ox; f.z = oz; } }
+          const g = Math.max(PQ.heightAt(f.x, -f.z), surfaceAt(f.x, -f.z, f.y - 1.65)) + 1.65;
           f.vy -= 22 * dt; f.y += f.vy * dt;
           if (f.y <= g) { f.y = g; f.vy = 0; if (keys.Space) f.vy = 6.8; }
         }

@@ -5,7 +5,7 @@
      原点 = 百度地图“台山市鹏权中学”POI 点
    three.js 世界坐标：x = X，z = -Y，y = 高度 */
 (function () {
-  const PQ = window.PQ = { mats: {}, colliders: [], labels: [], plan: [], spots: [], trees: [] };
+  const PQ = window.PQ = { mats: {}, colliders: [], labels: [], plan: [], spots: [], trees: [], surfaces: [] };
 
   PQ.loadThree = async function (onStatus) {
     if (window.THREE && window.THREE.WebGLRenderer) return window.THREE;   // 本地 vendor/three.global.js 已加载（离线可用）
@@ -67,7 +67,7 @@
   };
 
   class Batch {
-    constructor() { this.groups = new Map(); this.xf = null; }
+    constructor() { this.groups = new Map(); this.xf = null; this.dx = 0; }   // dx：整体沿 X 平移（米）
     _g(mat) { let o = this.groups.get(mat); if (!o) { o = { p: [], n: [], u: [], i: [] }; this.groups.set(mat, o); } return o; }
     /* 绕 (X,Y) 逆时针旋转 deg 度（校园坐标系俯视）；不带参数则取消 */
     rot(X, Y, deg) {
@@ -85,7 +85,7 @@
           x = xf.cx + dx * xf.c - dz * xf.s; z = xf.cz + dx * xf.s + dz * xf.c;
           const tx = nx * xf.c - nz * xf.s; nz = nx * xf.s + nz * xf.c; nx = tx;
         }
-        o.p.push(x, y, z); o.n.push(nx, ny, nz);
+        o.p.push(x + this.dx, y, z); o.n.push(nx, ny, nz);
       }
       for (let k = 0; k < 8; k++) o.u.push(uv[k]);
       o.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -130,7 +130,7 @@
       let contour = pts.map(p => new THREE.Vector2(p[0], p[1]));
       if (THREE.ShapeUtils.isClockWise(contour)) contour = contour.reverse();
       const tris = THREE.ShapeUtils.triangulateShape(contour, []);
-      for (const p of contour) { o.p.push(p.x, h, -p.y); o.n.push(0, 1, 0); o.u.push(p.x / m.tw, p.y / m.th); }
+      for (const p of contour) { o.p.push(p.x + this.dx, h, -p.y); o.n.push(0, 1, 0); o.u.push(p.x / m.tw, p.y / m.th); }
       for (const t of tris) o.i.push(base + t[0], base + t[1], base + t[2]);
     }
     line(m, Xa, Ya, Xb, Yb, w, h) {
