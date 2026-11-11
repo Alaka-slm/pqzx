@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台山市鹏权中学 · 校园三维模型</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #cfe0ee; font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif; color: #fff; user-select: none; }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .panel { position: fixed; background: rgba(18, 28, 40, .62); backdrop-filter: blur(6px); border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; }
+  #hud { left: 12px; top: 12px; padding: 10px 12px; }
+  #hud h1 { margin: 0 0 8px; font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+  #hud h1 small { font-weight: 400; font-size: 12px; opacity: .75; margin-left: 6px; }
+  button, select { font: inherit; font-size: 13px; color: #fff; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .22); border-radius: 7px; padding: 6px 12px; cursor: pointer; outline: none; }
+  button:hover, select:hover { background: rgba(255, 255, 255, .2); }
+  button.on { background: #2f7de1; border-color: #6aa6f2; }
+  select option { color: #111; }
+  #modes { display: flex; gap: 6px; }
+  #tools { right: 12px; top: 12px; padding: 10px 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 62vw; justify-content: flex-end; font-size: 13px; }
+  #tools input[type=range] { width: 120px; vertical-align: middle; }
+  #help { left: 12px; bottom: 12px; padding: 7px 12px; font-size: 12.5px; max-width: calc(100vw - 330px); line-height: 1.5; }
+  #miniWrap { right: 12px; bottom: 12px; padding: 5px; line-height: 0; }
+  #mini { width: 264px; height: 216px; border-radius: 6px; cursor: crosshair; }
+  #cross { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -4px 0 0 -4px; border: 1px solid rgba(255, 255, 255, .9); border-radius: 50%; display: none; pointer-events: none; box-shadow: 0 0 2px #000; }
+  #lock { position: fixed; left: 50%; top: 62%; transform: translateX(-50%); padding: 8px 16px; font-size: 14px; display: none; pointer-events: none; }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .lb { position: absolute; left: 0; top: 0; padding: 2px 8px; font-size: 12.5px; white-space: nowrap; background: rgba(20, 40, 70, .72); border: 1px solid rgba(255, 255, 255, .35); border-radius: 10px; text-shadow: 0 1px 2px #000; will-change: transform; }
+  #loading { position: fixed; inset: 0; background: linear-gradient(#274a78, #7fa8cf); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  #loading .box { text-align: center; }
+  #loading h1 { font-size: 30px; letter-spacing: 6px; margin: 0 0 6px; font-family: "KaiTi", "STKaiti", "楷体", serif; }
+  #loading p { margin: 6px 0; opacity: .9; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+<div id="hud" class="panel">
+  <h1>台山市鹏权中学<small>校园三维模型</small></h1>
+  <div id="modes">
+    <button data-mode="top">① 俯视</button>
+    <button data-mode="bird">② 鸟瞰</button>
+    <button data-mode="fp">③ 第一人称</button>
+  </div>
+</div>
+<div id="tools" class="panel">
+  <span>时间 <input id="time" type="range" min="6.5" max="18" step="0.25" value="9"> <b id="timeV">9:00</b></span>
+  <select id="spots"><option value="">快速定位…</option></select>
+  <button id="tgLabel" class="on">标注</button>
+  <button id="tgMini" class="on">小地图</button>
+  <button id="bReset">复位</button>
+</div>
+<div id="help" class="panel"></div>
+<div id="miniWrap" class="panel"><canvas id="mini" width="264" height="216"></canvas></div>
+<div id="cross"></div>
+<div id="lock" class="panel">点击画面开始漫游（Esc 释放鼠标）</div>
+<div id="loading"><div class="box"><h1>台山市鹏权中学</h1><p>校园三维模型</p><p id="status">加载中…</p></div></div>
+<script src="vendor/three.global.js"></script><!-- 本地 three.js r170；若缺失会自动改用 CDN -->
+<script src="js/core.js"></script>
+<script src="js/campus.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
