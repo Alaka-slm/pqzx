@@ -73,8 +73,15 @@
       fp: { x: 29, z: -131, y: 1.65, yaw: Math.PI, pitch: -0.02, vy: 0, fly: false }
     };
     let aspect = 1;
+    // 强制横屏：触屏设备竖着拿时，整个界面顺时针转 90° 按横屏显示（不依赖手机的自动旋转开关）
+    let ROT = false, VH = window.innerHeight;
+    const app = $('app');
+    const pt = e => ROT ? { x: e.clientY, y: window.innerWidth - e.clientX } : { x: e.clientX, y: e.clientY };   // 屏幕坐标 → 界面坐标
     function resize() {
-      const w = window.innerWidth, h = window.innerHeight; aspect = w / h;
+      const rw = window.innerWidth, rh = window.innerHeight;
+      ROT = TOUCH && rh > rw; document.body.classList.toggle('rot', ROT);
+      const w = ROT ? rh : rw, h = ROT ? rw : rh; VH = h; aspect = w / h;
+      app.style.width = w + 'px'; app.style.height = h + 'px';
       renderer.setSize(w, h, false); camBird.aspect = camFp.aspect = aspect; camBird.updateProjectionMatrix(); camFp.updateProjectionMatrix();
     }
     window.addEventListener('resize', resize); resize();
@@ -111,13 +118,13 @@
     let drag = null;
     const ptrs = new Map();                      // 触屏：当前按在画面上的手指
     const isTouch = e => e.pointerType === 'touch' || e.pointerType === 'pen';
-    const panTop = (dx, dy) => { const t = S.top, mpp = 440 / t.zoom / window.innerHeight, rx = Math.cos(t.rot), rz = Math.sin(t.rot), ux = Math.sin(t.rot), uz = -Math.cos(t.rot); t.x += (-rx * dx + ux * dy) * mpp; t.z += (-rz * dx + uz * dy) * mpp; };
+    const panTop = (dx, dy) => { const t = S.top, mpp = 440 / t.zoom / VH, rx = Math.cos(t.rot), rz = Math.sin(t.rot), ux = Math.sin(t.rot), uz = -Math.cos(t.rot); t.x += (-rx * dx + ux * dy) * mpp; t.z += (-rz * dx + uz * dy) * mpp; };
     const panBird = (dx, dy) => { const b = S.bird, k = b.r * 0.0016, fx = -Math.sin(b.th), fz = -Math.cos(b.th), rx = Math.cos(b.th), rz = -Math.sin(b.th); b.tx += (-rx * dx + fx * dy) * k; b.tz += (-rz * dx + fz * dy) * k; };
     const orbit = (dx, dy) => { const b = S.bird; b.th -= dx * 0.005; b.ph = Math.max(0.08, Math.min(1.52, b.ph - dy * 0.005)); };
     const zoomBy = k => { if (S.mode === 'top') S.top.zoom = Math.max(0.45, Math.min(14, S.top.zoom * k)); else if (S.mode === 'bird') S.bird.r = Math.max(12, Math.min(1500, S.bird.r / k)); };
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('pointerdown', e => {
-      if (isTouch(e)) { setTouch(); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); try { canvas.setPointerCapture(e.pointerId); } catch (err) { } e.preventDefault(); return; }
+      if (isTouch(e)) { setTouch(); ptrs.set(e.pointerId, pt(e)); try { canvas.setPointerCapture(e.pointerId); } catch (err) { } e.preventDefault(); return; }
       drag = { x: e.clientX, y: e.clientY, b: e.button, shift: e.shiftKey };
       if (S.mode === 'fp' && e.button === 0 && !locked()) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { }); } catch (err) { } }
       else { try { canvas.setPointerCapture(e.pointerId); } catch (err) { } }
@@ -125,13 +132,13 @@
     canvas.addEventListener('pointermove', e => {
       if (isTouch(e)) {
         const p = ptrs.get(e.pointerId); if (!p) return;
-        const dx = e.clientX - p.x, dy = e.clientY - p.y;
-        if (S.mode === 'fp') { p.x = e.clientX; p.y = e.clientY; look(dx * 2.2, dy * 2.2); return; }          // 第一人称：滑动屏幕转向
-        if (ptrs.size === 1) { p.x = e.clientX; p.y = e.clientY; if (S.mode === 'top') panTop(dx, dy); else orbit(dx, dy); return; }   // 单指：俯视平移 / 鸟瞰环绕
+        const q = pt(e), dx = q.x - p.x, dy = q.y - p.y;
+        if (S.mode === 'fp') { p.x = q.x; p.y = q.y; look(dx * 2.2, dy * 2.2); return; }          // 第一人称：滑动屏幕转向
+        if (ptrs.size === 1) { p.x = q.x; p.y = q.y; if (S.mode === 'top') panTop(dx, dy); else orbit(dx, dy); return; }   // 单指：俯视平移 / 鸟瞰环绕
         // 双指：捏合缩放、扭转旋转、并行拖动平移
         const it = ptrs.values(), a = it.next().value, b = it.next().value;
         const d0 = Math.hypot(b.x - a.x, b.y - a.y), a0 = Math.atan2(b.y - a.y, b.x - a.x), cx0 = (a.x + b.x) / 2, cy0 = (a.y + b.y) / 2;
-        p.x = e.clientX; p.y = e.clientY;
+        p.x = q.x; p.y = q.y;
         const d1 = Math.hypot(b.x - a.x, b.y - a.y), a1 = Math.atan2(b.y - a.y, b.x - a.x), cx1 = (a.x + b.x) / 2, cy1 = (a.y + b.y) / 2;
         let da = a1 - a0; if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI;
         if (d0 > 10 && d1 > 10) zoomBy(d1 / d0);
@@ -153,7 +160,7 @@
     const joy = { x: 0, y: 0, id: null }, joyEl = $('joy'), knob = $('joyKnob');
     const joySet = e => {
       const r = joyEl.getBoundingClientRect(), R = r.width / 2, m = R - 14;
-      let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R); const l = Math.hypot(dx, dy);
+      let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R); if (ROT) { const t = dx; dx = dy; dy = -t; } const l = Math.hypot(dx, dy);
       if (l > m) { dx *= m / l; dy *= m / l; }
       joy.x = dx / m; joy.y = -dy / m; knob.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
     };
@@ -256,7 +263,7 @@
       help.classList.remove('fade'); clearTimeout(helpTimer);
       if (TOUCH) helpTimer = setTimeout(() => help.classList.add('fade'), 6000);       // 手机上提示显示几秒后自动淡出
     }
-    function setTouch() { if (document.body.classList.contains('touch')) return; TOUCH = true; document.body.classList.add('touch'); hint(); }
+    function setTouch() { if (document.body.classList.contains('touch')) return; TOUCH = true; document.body.classList.add('touch'); resize(); hint(); }
     function toggleFly() { if (S.mode !== 'fp') return; S.fp.fly = !S.fp.fly; S.fp.vy = 0; hint(); }
     function setMode(mode) {
       if (mode !== 'fp' && locked()) document.exitPointerLock();
@@ -314,7 +321,7 @@
       mg.beginPath(); mg.moveTo(0, -9); mg.lineTo(6, 7); mg.lineTo(0, 3); mg.lineTo(-6, 7); mg.closePath(); mg.fill(); mg.stroke(); mg.restore();
     }
     mini.addEventListener('click', e => {
-      const r = mini.getBoundingClientRect(), X = (e.clientX - r.left) * MW / r.width, Y = (e.clientY - r.top) * MH / r.height;
+      const r = mini.getBoundingClientRect(), X = (ROT ? (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width) * MW, Y = (ROT ? (r.right - e.clientX) / r.width : (e.clientY - r.top) / r.height) * MH;
       const cx = (X - MW / 2) / MS - 5, cy = -(Y - MH / 2) / MS + 12;
       if (S.mode === 'fp') { const f = S.fp; f.x = cx; f.z = -cy; collide(f); f.y = PQ.heightAt(f.x, -f.z) + (f.fly ? 30 : 1.65); f.vy = 0; }
       else if (S.mode === 'bird') { S.bird.tx = cx; S.bird.tz = -cy; } else { S.top.x = cx; S.top.z = -cy; }

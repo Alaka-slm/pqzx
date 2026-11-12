@@ -8,6 +8,8 @@
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #cfe0ee; font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif; color: #fff;
     user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; touch-action: manipulation; }
+  #app { position: fixed; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; }
+  body.rot #app { transform: rotate(90deg) translateY(-100%); }   /* 触屏竖屏：整体旋转成横屏，尺寸由脚本设置 */
   #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   .panel { background: rgba(18, 28, 40, .62); backdrop-filter: blur(6px); border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; }
   #topbar { position: fixed; left: 12px; top: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; z-index: 5; }
@@ -21,9 +23,9 @@
   select option { color: #111; }
   #modes { display: flex; gap: 6px; flex-wrap: wrap; }
   #tgTools { display: none; }
-  #tools { padding: 10px 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 62vw; justify-content: flex-end; font-size: 13px; }
+  #tools { padding: 10px 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 62%; justify-content: flex-end; font-size: 13px; }
   #tools input[type=range] { width: 120px; vertical-align: middle; }
-  #help { position: fixed; left: 12px; bottom: 12px; padding: 7px 12px; font-size: 12.5px; max-width: calc(100vw - 330px); line-height: 1.5; transition: opacity .6s; pointer-events: none; }
+  #help { position: fixed; left: 12px; bottom: 12px; padding: 7px 12px; font-size: 12.5px; max-width: calc(100% - 330px); line-height: 1.5; transition: opacity .6s; pointer-events: none; }
   #help.fade { opacity: 0; }
   #miniWrap { position: fixed; right: 12px; bottom: 12px; padding: 5px; line-height: 0; z-index: 3; }
   #mini { width: 264px; height: 216px; border-radius: 6px; cursor: crosshair; }
@@ -54,18 +56,19 @@
     #hud h1 { display: none; }
     button, select { font-size: 12px; padding: 6px 9px; }
     #tgTools { display: inline-block; }
-    #tools { display: none; max-width: calc(100vw - 168px); justify-content: flex-start; padding: 8px; }
+    #tools { display: none; max-width: calc(100% - 160px); justify-content: flex-start; padding: 8px; }
     #tools.open { display: flex; }
     #tools input[type=range] { width: 96px; }
     #miniWrap { top: 56px; right: 8px; bottom: auto; padding: 3px; }
     #mini { width: 132px; height: 108px; }
-    #help { left: 50%; transform: translateX(-50%); bottom: 10px; max-width: 92vw; font-size: 11.5px; text-align: center; padding: 5px 10px; }
+    #help { left: 50%; transform: translateX(-50%); bottom: 10px; max-width: 92%; font-size: 11.5px; text-align: center; padding: 5px 10px; }
     #loading h1 { font-size: 22px; letter-spacing: 3px; }
   }
-  body.touch.fp #help { left: 8px; top: 56px; bottom: auto; transform: none; text-align: left; max-width: calc(100vw - 168px); }
+  body.touch.fp #help { left: 8px; top: 56px; bottom: auto; transform: none; text-align: left; max-width: calc(100% - 168px); }
 </style>
 </head>
 <body>
+<div id="app">
 <canvas id="c"></canvas>
 <div id="topbar">
   <div id="hud" class="panel">
@@ -95,6 +98,7 @@
   <button id="tJump" class="tbtn">跳</button>
 </div>
 <div id="loading"><div class="box"><h1>台山市鹏权中学</h1><p>校园三维模型</p><p id="status">加载中…</p></div></div>
+</div>
 <script src="vendor/three.global.js"></script><!-- 本地 three.js r170；若缺失会自动改用 CDN -->
 <script src="js/core.js"></script>
 <script src="js/campus.js"></script>
