@@ -11,6 +11,9 @@
 
   function start() {
     const canvas = $('c');
+    // 触屏设备（或网址带 ?touch=1）启用手机操作；之后只要检测到手指触摸也会自动切换
+    let TOUCH = /[?&]touch=1/.test(location.search) || !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+    const LOWSPEC = TOUCH;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: /[?&]shot=1/.test(location.search), powerPreference: 'high-performance' });
     let pr = Math.min(window.devicePixelRatio || 1, 1.5); renderer.setPixelRatio(pr);
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
@@ -32,7 +35,7 @@
 
     /* 光照 */
     const hemi = new THREE.HemisphereLight(0xe4eeff, 0x8c9078, 1.1); scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xfff3e0, 2.3); sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
+    const sun = new THREE.DirectionalLight(0xfff3e0, 2.3); sun.castShadow = true; sun.shadow.mapSize.set(LOWSPEC ? 2048 : 4096, LOWSPEC ? 2048 : 4096);
     const sc = sun.shadow.camera; sc.left = -330; sc.right = 330; sc.top = 330; sc.bottom = -330; sc.near = 50; sc.far = 1500;
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.06;
     sun.target.position.set(0, 0, 0); scene.add(sun); scene.add(sun.target);
@@ -75,6 +78,13 @@
       renderer.setSize(w, h, false); camBird.aspect = camFp.aspect = aspect; camBird.updateProjectionMatrix(); camFp.updateProjectionMatrix();
     }
     window.addEventListener('resize', resize); resize();
+    // 默认取景：竖屏（手机竖握）时把镜头拉远，保证能看到整个校园
+    function fitViews() {
+      const p = aspect < 1;
+      S.top = { x: 0, z: -8, zoom: p ? Math.max(0.45, aspect * 0.95) : 1, rot: 0 };
+      S.bird = { tx: 10, tz: 0, r: p ? Math.min(900, 400 / aspect) : 420, th: Math.PI, ph: p ? 0.8 : 0.92 };
+    }
+    fitViews();
     function applyCam() {
       if (S.mode === 'top') {
         const t = S.top, H = 440 / t.zoom, W = H * aspect;
@@ -99,41 +109,78 @@
     const locked = () => document.pointerLockElement === canvas;
     const look = (dx, dy) => { const f = S.fp; f.yaw -= dx * 0.0024; f.pitch = Math.max(-1.5, Math.min(1.5, f.pitch - dy * 0.0024)); };
     let drag = null;
+    const ptrs = new Map();                      // 触屏：当前按在画面上的手指
+    const isTouch = e => e.pointerType === 'touch' || e.pointerType === 'pen';
+    const panTop = (dx, dy) => { const t = S.top, mpp = 440 / t.zoom / window.innerHeight, rx = Math.cos(t.rot), rz = Math.sin(t.rot), ux = Math.sin(t.rot), uz = -Math.cos(t.rot); t.x += (-rx * dx + ux * dy) * mpp; t.z += (-rz * dx + uz * dy) * mpp; };
+    const panBird = (dx, dy) => { const b = S.bird, k = b.r * 0.0016, fx = -Math.sin(b.th), fz = -Math.cos(b.th), rx = Math.cos(b.th), rz = -Math.sin(b.th); b.tx += (-rx * dx + fx * dy) * k; b.tz += (-rz * dx + fz * dy) * k; };
+    const orbit = (dx, dy) => { const b = S.bird; b.th -= dx * 0.005; b.ph = Math.max(0.08, Math.min(1.52, b.ph - dy * 0.005)); };
+    const zoomBy = k => { if (S.mode === 'top') S.top.zoom = Math.max(0.45, Math.min(14, S.top.zoom * k)); else if (S.mode === 'bird') S.bird.r = Math.max(12, Math.min(1500, S.bird.r / k)); };
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('pointerdown', e => {
+      if (isTouch(e)) { setTouch(); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); try { canvas.setPointerCapture(e.pointerId); } catch (err) { } e.preventDefault(); return; }
       drag = { x: e.clientX, y: e.clientY, b: e.button, shift: e.shiftKey };
       if (S.mode === 'fp' && e.button === 0 && !locked()) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { }); } catch (err) { } }
       else { try { canvas.setPointerCapture(e.pointerId); } catch (err) { } }
     });
     canvas.addEventListener('pointermove', e => {
+      if (isTouch(e)) {
+        const p = ptrs.get(e.pointerId); if (!p) return;
+        const dx = e.clientX - p.x, dy = e.clientY - p.y;
+        if (S.mode === 'fp') { p.x = e.clientX; p.y = e.clientY; look(dx * 2.2, dy * 2.2); return; }          // 第一人称：滑动屏幕转向
+        if (ptrs.size === 1) { p.x = e.clientX; p.y = e.clientY; if (S.mode === 'top') panTop(dx, dy); else orbit(dx, dy); return; }   // 单指：俯视平移 / 鸟瞰环绕
+        // 双指：捏合缩放、扭转旋转、并行拖动平移
+        const it = ptrs.values(), a = it.next().value, b = it.next().value;
+        const d0 = Math.hypot(b.x - a.x, b.y - a.y), a0 = Math.atan2(b.y - a.y, b.x - a.x), cx0 = (a.x + b.x) / 2, cy0 = (a.y + b.y) / 2;
+        p.x = e.clientX; p.y = e.clientY;
+        const d1 = Math.hypot(b.x - a.x, b.y - a.y), a1 = Math.atan2(b.y - a.y, b.x - a.x), cx1 = (a.x + b.x) / 2, cy1 = (a.y + b.y) / 2;
+        let da = a1 - a0; if (da > Math.PI) da -= 2 * Math.PI; else if (da < -Math.PI) da += 2 * Math.PI;
+        if (d0 > 10 && d1 > 10) zoomBy(d1 / d0);
+        if (S.mode === 'top') { S.top.rot -= da; panTop(cx1 - cx0, cy1 - cy0); } else { S.bird.th += da; panBird(cx1 - cx0, cy1 - cy0); }
+        return;
+      }
       if (S.mode === 'fp' && locked()) { look(e.movementX, e.movementY); return; }
       if (!drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
       const alt = drag.b === 2 || drag.shift;
-      if (S.mode === 'top') {
-        const t = S.top, mpp = 440 / t.zoom / window.innerHeight;
-        if (alt) t.rot += dx * 0.006;
-        else { const rx = Math.cos(t.rot), rz = Math.sin(t.rot), ux = Math.sin(t.rot), uz = -Math.cos(t.rot); t.x += (-rx * dx + ux * dy) * mpp; t.z += (-rz * dx + uz * dy) * mpp; }
-      } else if (S.mode === 'bird') {
-        const b = S.bird;
-        if (alt) { const k = b.r * 0.0016, fx = -Math.sin(b.th), fz = -Math.cos(b.th), rx = Math.cos(b.th), rz = -Math.sin(b.th); b.tx += (-rx * dx + fx * dy) * k; b.tz += (-rz * dx + fz * dy) * k; }
-        else { b.th -= dx * 0.005; b.ph = Math.max(0.08, Math.min(1.52, b.ph - dy * 0.005)); }
-      } else look(dx * 1.3, dy * 1.3);
+      if (S.mode === 'top') { if (alt) S.top.rot += dx * 0.006; else panTop(dx, dy); }
+      else if (S.mode === 'bird') { if (alt) panBird(dx, dy); else orbit(dx, dy); }
+      else look(dx * 1.3, dy * 1.3);
     });
-    const endDrag = () => { drag = null; };
+    const endDrag = e => { drag = null; ptrs.delete(e.pointerId); };
     canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+
+    /* 触屏第一人称：左下虚拟摇杆（推到边缘为奔跑）、右下跳跃 / 飞行按钮 */
+    const joy = { x: 0, y: 0, id: null }, joyEl = $('joy'), knob = $('joyKnob');
+    const joySet = e => {
+      const r = joyEl.getBoundingClientRect(), R = r.width / 2, m = R - 14;
+      let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R); const l = Math.hypot(dx, dy);
+      if (l > m) { dx *= m / l; dy *= m / l; }
+      joy.x = dx / m; joy.y = -dy / m; knob.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+    };
+    const joyEnd = e => { if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; };
+    joyEl.addEventListener('pointerdown', e => { joy.id = e.pointerId; try { joyEl.setPointerCapture(e.pointerId); } catch (err) { } joySet(e); e.preventDefault(); });
+    joyEl.addEventListener('pointermove', e => { if (e.pointerId === joy.id) joySet(e); });
+    joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercancel', joyEnd);
+    const holdBtn = (el, code, onDown) => {
+      el.addEventListener('pointerdown', e => { keys[code] = true; el.classList.add('on'); if (onDown) onDown(); e.preventDefault(); });
+      for (const t of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(t, () => { keys[code] = false; el.classList.remove('on'); });
+      el.addEventListener('contextmenu', e => e.preventDefault());
+    };
+    let lastJump = 0;
+    holdBtn($('tJump'), 'Space', () => { const n = performance.now(); if (n - lastJump < 320) toggleFly(); lastJump = n; });   // 连点两下跳跃键也能切换飞行
+    holdBtn($('tDown'), 'KeyC');
+    $('tFly').addEventListener('click', e => { toggleFly(); e.target.blur(); });
     canvas.addEventListener('wheel', e => {
       e.preventDefault();
       const k = Math.exp(e.deltaY * 0.0012);
-      if (S.mode === 'top') S.top.zoom = Math.max(0.45, Math.min(14, S.top.zoom / k));
-      else if (S.mode === 'bird') S.bird.r = Math.max(12, Math.min(1500, S.bird.r * k));
+      if (S.mode !== 'fp') zoomBy(1 / k);
       else { camFp.fov = Math.max(30, Math.min(90, camFp.fov * (e.deltaY > 0 ? 1.06 : 0.94))); camFp.updateProjectionMatrix(); }
     }, { passive: false });
     window.addEventListener('keydown', e => {
       if (/INPUT|SELECT/.test(e.target.tagName)) return;
       keys[e.code] = true;
       if (e.code === 'Digit1') setMode('top'); else if (e.code === 'Digit2') setMode('bird'); else if (e.code === 'Digit3') setMode('fp');
-      else if (e.code === 'KeyF' && S.mode === 'fp') { S.fp.fly = !S.fp.fly; S.fp.vy = 0; hint(); }
+      else if (e.code === 'KeyF') toggleFly();
       else if (e.code === 'KeyM') $('tgMini').click();
       if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
     });
@@ -157,9 +204,9 @@
     function surfaceAt(X, Y, feet) { let h = -1e9; for (const s of PQ.surfaces) if (X >= s[0] && X <= s[1] && Y >= s[2] && Y <= s[3] && s[4] <= feet + 0.55 && s[4] > h) h = s[4]; return h; }
     function blockedAt(X, Y, feet) { for (const s of PQ.surfaces) if (s[5] && X >= s[0] && X <= s[1] && Y >= s[2] && Y <= s[3] && s[4] > feet + 0.55) return true; return false; }
     function update(dt) {
-      const ax = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), az = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+      const ax = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + joy.x, az = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0) + joy.y;
       const arX = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0), arY = (keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0);
-      const rotK = (keys.KeyE ? 1 : 0) - (keys.KeyQ ? 1 : 0), fast = keys.ShiftLeft || keys.ShiftRight;
+      const rotK = (keys.KeyE ? 1 : 0) - (keys.KeyQ ? 1 : 0), fast = keys.ShiftLeft || keys.ShiftRight || Math.hypot(joy.x, joy.y) > 0.92;
       if (S.mode === 'top') {
         const t = S.top, v = 260 / t.zoom * dt * (fast ? 2.5 : 1), mx = ax + arX, my = az + arY;
         t.x += (Math.cos(t.rot) * mx + Math.sin(t.rot) * my) * v; t.z += (Math.sin(t.rot) * mx - Math.cos(t.rot) * my) * v; t.rot += rotK * dt * 1.2;
@@ -178,7 +225,7 @@
           f.y = Math.max(PQ.heightAt(f.x, -f.z) + 0.6, Math.min(600, f.y));
         } else {
           let vx = -sy * mz + cy * ax, vz = -cy * mz - sy * ax; const l = Math.hypot(vx, vz);
-          if (l > 0) { const v = (fast ? 11 : 4.6) * dt / l, ox = f.x, oz = f.z; f.x += vx * v; f.z += vz * v; collide(f); const ft = f.y - 1.65; if (blockedAt(f.x, -f.z, ft) || PQ.heightAt(f.x, -f.z) - ft > 0.6) { f.x = ox; f.z = oz; } }   // 挡墙、陡坎迈不上去
+          if (l > 0.02) { const v = (fast ? 11 : 4.6) * Math.min(1, l) * dt / l, ox = f.x, oz = f.z; f.x += vx * v; f.z += vz * v; collide(f); const ft = f.y - 1.65; if (blockedAt(f.x, -f.z, ft) || PQ.heightAt(f.x, -f.z) - ft > 0.6) { f.x = ox; f.z = oz; } }   // 挡墙、陡坎迈不上去
           const g = Math.max(PQ.heightAt(f.x, -f.z), surfaceAt(f.x, -f.z, f.y - 1.65)) + 1.65;
           f.vy -= 22 * dt; f.y += f.vy * dt;
           if (f.y <= g) { f.y = g; f.vy = 0; if (keys.Space) f.vy = 6.8; }
@@ -193,21 +240,34 @@
       bird: '鸟瞰：左键拖动环绕 · 右键拖动（或 Shift+拖动）平移 · 滚轮缩放 · WASD 平移 · Q、E 旋转',
       fp: '第一人称：点击画面锁定鼠标转向（Esc 释放；也可按住左键拖动）· WASD 移动 · ←→ 转向 · Shift 奔跑 · 空格 跳跃 · F 飞行（空格升 / C 降）· 滚轮变焦'
     };
+    const HELP_T = {
+      top: '俯视：单指拖动平移 · 双指捏合缩放 · 双指扭转旋转',
+      bird: '鸟瞰：单指拖动环绕 · 双指捏合缩放 · 双指拖动平移 · 双指扭转旋转',
+      fp: '第一人称：左下摇杆移动（推到边缘奔跑）· 滑动屏幕转向 · 右下“跳”跳跃 · “飞行”切换飞行（升 / 降）'
+    };
+    let helpTimer = 0;
     function hint() {
-      $('help').textContent = HELP[S.mode] + (S.mode === 'fp' && S.fp.fly ? '　【飞行模式】' : '');
-      $('lock').style.display = (S.mode === 'fp' && !locked()) ? 'block' : 'none';
-      $('cross').style.display = S.mode === 'fp' ? 'block' : 'none';
+      const fp = S.mode === 'fp', fly = fp && S.fp.fly, help = $('help');
+      help.textContent = (TOUCH ? HELP_T : HELP)[S.mode] + (fly ? '　【飞行模式】' : '');
+      $('lock').style.display = (fp && !TOUCH && !locked()) ? 'block' : 'none';
+      $('cross').style.display = fp ? 'block' : 'none';
+      document.body.classList.toggle('fp', fp); document.body.classList.toggle('fly', fly);
+      $('tJump').textContent = fly ? '升' : '跳'; $('tFly').classList.toggle('on', fly);
+      help.classList.remove('fade'); clearTimeout(helpTimer);
+      if (TOUCH) helpTimer = setTimeout(() => help.classList.add('fade'), 6000);       // 手机上提示显示几秒后自动淡出
     }
+    function setTouch() { if (document.body.classList.contains('touch')) return; TOUCH = true; document.body.classList.add('touch'); hint(); }
+    function toggleFly() { if (S.mode !== 'fp') return; S.fp.fly = !S.fp.fly; S.fp.vy = 0; hint(); }
     function setMode(mode) {
       if (mode !== 'fp' && locked()) document.exitPointerLock();
       S.mode = mode;
-      for (const b of document.querySelectorAll('#modes button')) b.classList.toggle('on', b.dataset.mode === mode);
+      for (const b of document.querySelectorAll('#modes button[data-mode]')) b.classList.toggle('on', b.dataset.mode === mode);
       sky.visible = mode !== 'top'; scene.fog = mode === 'top' ? null : fog;
       if (mode === 'fp') { const f = S.fp; f.y = Math.max(f.y, PQ.heightAt(f.x, -f.z) + 1.65); f.vy = 0; }
       hint();
     }
     PQ.setMode = setMode;
-    for (const b of document.querySelectorAll('#modes button')) b.addEventListener('click', () => { setMode(b.dataset.mode); b.blur(); });
+    for (const b of document.querySelectorAll('#modes button[data-mode]')) b.addEventListener('click', () => { setMode(b.dataset.mode); b.blur(); });
     const sel = $('spots');
     PQ.spots.forEach((s, i) => { const o = document.createElement('option'); o.value = i; o.textContent = s.name; sel.appendChild(o); });
     function goSpot(i) {
@@ -223,7 +283,8 @@
     $('time').addEventListener('input', e => setSun(+e.target.value));
     let showMini = true;
     $('tgMini').addEventListener('click', e => { showMini = !showMini; e.target.classList.toggle('on', showMini); $('miniWrap').style.display = showMini ? 'block' : 'none'; e.target.blur(); });
-    $('bReset').addEventListener('click', e => { S.top = { x: 0, z: -8, zoom: 1, rot: 0 }; S.bird = { tx: 10, tz: 0, r: 420, th: Math.PI, ph: 0.92 }; e.target.blur(); });
+    $('tgTools').addEventListener('click', e => { e.target.classList.toggle('on', $('tools').classList.toggle('open')); e.target.blur(); });
+    $('bReset').addEventListener('click', e => { fitViews(); e.target.blur(); });
 
     /* 小地图（校园坐标系：上方为环市西路/东北方向） */
     const mini = $('mini'), mg = mini.getContext('2d'), MW = mini.width, MH = mini.height, MS = 0.58;
@@ -260,6 +321,7 @@
     });
 
     /* 主循环 */
+    if (TOUCH) document.body.classList.add('touch');
     setSun(+$('time').value); setMode('bird');
     $('loading').style.display = 'none';
     let last = performance.now(), fN = 0, fT = 0;
