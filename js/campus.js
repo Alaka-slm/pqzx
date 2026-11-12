@@ -19,10 +19,10 @@
 
   /* ---------------- 拔高区（按需求设计，非实测） ----------------
      运动场地（新建）和第二教学楼、科艺楼一带整体比田径场、第一教学楼地面高 RH 米。
-     - 第一教学楼左右两侧的路是坡道：坡底在主干道路口（X=25），左侧坡到楼间位置（X=-57.5）到顶，右侧坡到科艺楼近端（X=-65）到顶，之后是平路
+     - 第一教学楼左右两侧的路是坡道：右侧坡底在主干道路口（X=25），左侧坡底在跑道外侧（X=8）；左侧坡到楼间位置（X=-57.5）到顶，右侧坡到科艺楼近端（X=-65）到顶，之后是平路
      - 第一教学楼正后方（X -57 起）到后面两栋楼之间是一整段草坡，坡顶 X = xTop(Y) */
   const RH = PQ.RH = 2.5;
-  const rampS = PQ.rampS = X => RH * Math.min(1, Math.max(0, (25 - X) / 82.5));
+  const rampS = PQ.rampS = X => RH * Math.min(1, Math.max(0, (8 - X) / 65.5));     // 左侧坡道：坡底 X=8（避开跑道）
   const rampN = PQ.rampN = X => RH * Math.min(1, Math.max(0, (25 - X) / 90));
   const xTop = Y => Y <= 33 ? -73 : Y >= 41 ? -65 : -73 + (Y - 33);
   function raisedAt(X, Y) {
@@ -73,10 +73,11 @@
     N('track', '#b9462f', ['#b0402a', '#c24e36', '#a83c28'], 2400, 2, 6, { po: 4 });
     N('trackD', '#a9503a', ['#a04934', '#b25840'], 2000, 2, 6, { po: 3 });
     M('pitch', { map: tex(256, 256, (g, w, h) => { noise('#5d9a3b', ['#56923a', '#64a040'], 1800, 3)(g, w, h); g.globalAlpha = .28; g.fillStyle = '#3f7a2c'; g.fillRect(0, 0, w / 2, h); g.globalAlpha = 1; }), tw: 11, po: 4 });
+    N('sand', '#d9c07a', ['#cfb56e', '#e2ca86', '#c9ad64', '#dcc47f'], 2600, 3, 6, { po: 3 });
+    M('pitch2', { map: tex(256, 256, (g, w, h) => { noise('#5d9a3b', ['#56923a', '#64a040'], 1800, 3)(g, w, h); g.globalAlpha = .28; g.fillStyle = '#3f7a2c'; g.fillRect(0, 0, w, h / 2); g.globalAlpha = 1; }), tw: 10, po: 3 });
     N('apron', '#a9bfa6', ['#a0b69d', '#b2c7af'], 1800, 4, 8, { po: 2 });
     N('courtG', '#3f8f5e', ['#3a8756', '#459764'], 1200, 3, 6, { po: 3 });
     N('courtR', '#b5563f', ['#ad4f39', '#bd5e47'], 1200, 3, 6, { po: 4 });
-    N('courtB', '#4a82b4', ['#447aab', '#518bbd'], 1200, 3, 6, { po: 2 });
     C('white', 0xf2f2ee, { noShadow: true, po: 6 }); C('yellow', 0xe4c02a, { noShadow: true, po: 6 });
     M('water', { map: tex(256, 256, (g, w, h) => { g.fillStyle = '#2f9db6'; g.fillRect(0, 0, w, h); g.strokeStyle = '#8fe0ee'; g.globalAlpha = .35; for (let i = 0; i < 90; i++) { g.beginPath(); const x = R() * w, y = R() * h; g.moveTo(x, y); g.quadraticCurveTo(x + 12, y + (R() - .5) * 10, x + 26, y + (R() - .5) * 6); g.stroke(); } g.globalAlpha = 1; }), tw: 7, phong: true, shininess: 120, transparent: true, opacity: .9, noShadow: true, po: 5 });
     Gd('poolTile', '#8fd3e6', '#5fa9c0', 32, .7, 2, null, { po: 3 });
@@ -333,10 +334,10 @@
       .forEach(w => wall(w[0], w[1], w[2], w[3], w[4], w[5]));
 
     /* --- 道路与铺装 --- */
-    [[25, 39, -17, 110], [3.5, 25, 22, 58], [25, 26, -27, -17],
+    [[25, 39, -17, 110], [3.5, 25, 22, 58],
       [39, 150, 10.6, 14], [39, 50.7, -12, 14], [104, 165, 14, 72], [128, 165, 72, 131], [165, 190, 14, 52], [112, 190, -12, 14]]
       .forEach(r => G.flat(m.conc, r[0], r[1], r[2], r[3], .05));
-    plan(25, 39, -17, 110, '#c9c6bd'); plan(-190, 26, -27, -17, '#c9c6bd'); plan(-150, 25, 98, 108, '#c9c6bd');
+    plan(25, 39, -17, 110, '#c9c6bd'); plan(-190, 8, -27, -17, '#c9c6bd'); plan(-150, 25, 98, 108, '#c9c6bd');
 
     /* --- 拔高区：高台、挡墙、两侧坡道、楼后草坡（高度函数见文件开头 raisedAt） --- */
     (function () {
@@ -353,7 +354,7 @@
       shift(0, H); G.flat(m.conc, -185, -57.5, -27, -17, .05); G.flat(m.conc, -150, -65, 98, 108, .05); shift(0);
       const rq = (mat, x0, x1, y0, y1, hf, off) => G.quad(mat, [x0, hf(x0) + off, -y0], [x1, hf(x1) + off, -y0], [x1, hf(x1) + off, -y1], [x0, hf(x0) + off, -y1], [0, 1, 0],
         [x0 / mat.tw, y0 / mat.th, x1 / mat.tw, y0 / mat.th, x1 / mat.tw, y1 / mat.th, x0 / mat.tw, y1 / mat.th]);
-      rq(m.conc, -57.5, 25, -27, -17, rS, .05);                              // 左侧坡道（靠运动场地）
+      rq(m.conc, -57.5, 8, -27, -17, rS, .05);                              // 左侧坡道（靠运动场地）
       rq(m.conc, -65, 25, 98, 108, rN, .05); rq(m.lawn, -65, 5, 108, 112, rN, .03);   // 右侧坡道（通往科艺楼）
       // 坡道两侧的挡墙兼护栏：墙顶随坡度升高，比路面高 ex 米
       const rw = (mat, xa, xb, y0, y1, hf, ex) => {
@@ -365,8 +366,8 @@
         B.quad(mat, [xa, 0, -y1], [xa, 0, -y0], [xa, ta, -y0], [xa, ta, -y1], [-1, 0, 0], [0, 0, .1, 0, .1, ta / t, 0, ta / t]);
         col(xa, xb, y0, y1);
       };
-      rw(R0, -71.5, -57.5, -17, -16.75, rS, .9); rw(R0, -57.5, 25, -17, -16.75, rS, .9);   // 左坡道北侧：墙下就是第一教学楼旁的小巷
-      rw(R0, -32, 25, -27.25, -27, rS, .9);                                                // 左坡道南侧
+      rw(R0, -71.5, -57.5, -17, -16.75, rS, .9); rw(R0, -57.5, 8, -17, -16.75, rS, .9);   // 左坡道北侧：墙下就是第一教学楼旁的小巷
+      rw(R0, -32, 8, -27.25, -27, rS, .9);                                                // 左坡道南侧
       rw(R0, -65, 25, 97.75, 98, rN, .9);                                                  // 右坡道南侧：墙下是第一教学楼另一侧的小巷
       rw(R0, 5, 25, 108, 108.25, rN, .9); B.box(R0, 5, 5.25, 108.25, 112, 0, rN(5) + .9); col(5, 5.25, 108.25, 112);
       rw(m.wCream, -65, 5, 111.88, 112.12, rN, 2.3);                                       // 右坡道北侧的校园围墙随坡升高
@@ -571,13 +572,27 @@
     G.flat(m.courtG, 156, 189, -45, -11.5, .065); court(164.5, -28, false); court(181, -28, false); plan(156, 189, -45, -11.5, '#3f8f5e');
     // 西侧新建运动场地（原土操场硬化）：整体抬高 RH 米，东缘与田径场之间是垂直挡墙
     shift(0, RH);
-    G.flat(m.courtB, -117, -32, -97, -30, .06); plan(-117, -32, -97, -30, '#4a82b4');
-    court(-101, -46, false); court(-80, -46, false); court(-101, -80.5, false); court(-80, -80.5, false);
-    for (const x of [-56, -42]) {                // 排球场 9×18
-      G.flat(m.courtR, x - 4.5, x + 4.5, -55, -37, .075); G.rectLine(m.white, x - 4.5, x + 4.5, -55, -37, .06, .1); G.line(m.white, x - 4.5, -46, x + 4.5, -46, .06, .1); G.line(m.white, x - 4.5, -43, x + 4.5, -43, .06, .1); G.line(m.white, x - 4.5, -49, x + 4.5, -49, .06, .1);
-      B.cyl(m.steel, x - 5, -46, .06, 0, 2.5, 8); B.cyl(m.steel, x + 5, -46, .06, 0, 2.5, 8); B.box({ N: m.net, S: m.net }, x - 5, x + 5, -46.01, -45.99, 1.45, 2.43);
+    // 西半部：沙地排球场三个（不画线，只设球网；球场长边沿 Y 方向，三个沿 X 方向依次排开）
+    G.flat(m.sand, -117, -66, -97, -30, .06); plan(-117, -66, -97, -30, '#d9c07a');
+    for (const x of [-108.5, -91.5, -74.5]) {
+      B.cyl(m.steel, x - 5.5, -63.5, .07, 0, 2.55, 8); B.cyl(m.steel, x + 5.5, -63.5, .07, 0, 2.55, 8);
+      B.box({ N: m.net, S: m.net }, x - 5.5, x + 5.5, -63.51, -63.49, 1.43, 2.43); B.box(m.white, x - 5.5, x + 5.5, -63.53, -63.47, 2.4, 2.46);
     }
-    for (let i = 0; i < 6; i++) { const x = -60 + i * 4.6; B.cyl(m.steel, x, -80, .05, 0, 2.3, 8); B.cyl(m.steel, x, -77.8, .05, 0, 2.3, 8); B.box(m.steel, x - .04, x + .04, -80, -77.8, 2.26, 2.34); }
+    // 东半部：小足球场（28×60 米，长边沿 Y 方向）
+    G.flat(m.pitch2, -66, -32, -97, -30, .06); plan(-66, -32, -97, -30, '#5d9a3b');
+    (function () {
+      const cx = -49, cy = -63.5, hw = 14, hl = 30, L = (xa, ya, xb, yb) => G.line(m.white, xa, ya, xb, yb, .1, .1);
+      G.rectLine(m.white, cx - hw, cx + hw, cy - hl, cy + hl, .1, .1); L(cx - hw, cy, cx + hw, cy); G.arc(m.white, cx, cy, 5, 0, 2 * PI, .1, .1, 28);
+      for (const s of [-1, 1]) {
+        const gy = cy + s * hl, ny = gy + s * 1.4;
+        L(cx - 9, gy, cx - 9, gy - s * 8); L(cx + 9, gy, cx + 9, gy - s * 8); L(cx - 9, gy - s * 8, cx + 9, gy - s * 8);          // 禁区
+        L(cx - 4.5, gy, cx - 4.5, gy - s * 3); L(cx + 4.5, gy, cx + 4.5, gy - s * 3); L(cx - 4.5, gy - s * 3, cx + 4.5, gy - s * 3);  // 球门区
+        B.cyl(m.white, cx - 2.5, gy, .06, 0, 2, 8); B.cyl(m.white, cx + 2.5, gy, .06, 0, 2, 8); B.box(m.white, cx - 2.5, cx + 2.5, gy - .06, gy + .06, 1.94, 2.06);
+        B.box({ N: m.net, S: m.net }, cx - 2.5, cx + 2.5, ny - .01, ny + .01, 0, 2);
+        B.box({ T: m.net }, cx - 2.5, cx + 2.5, Math.min(gy, ny), Math.max(gy, ny), 1.99, 2);
+        for (const x of [cx - 2.5, cx + 2.5]) B.box({ E: m.net, W: m.net }, x - .01, x + .01, Math.min(gy, ny), Math.max(gy, ny), 0, 2);
+      }
+    })();
     row(-22, -95, -22, -33, 8, 'b', 1); row(-28, -99.6, -114, -99.6, 9.5, 'b', .9);
     label('运动场地（新建）', -74, -63, 4);
     shift(0);
