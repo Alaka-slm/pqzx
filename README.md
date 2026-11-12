@@ -6,10 +6,7 @@
 
 ## 在线访问
 
-无需下载，用浏览器直接打开，下面两个链接内容相同：
-
-- <https://alaka-slm.github.io/NongMinLRS/>（注意大小写）
-- <https://alaka-slm.github.io/pqzx/>
+无需下载，用浏览器直接打开：<https://alaka-slm.github.io/pqzx/>
 
 ## 本地打开
 
