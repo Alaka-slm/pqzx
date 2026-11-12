@@ -91,9 +91,8 @@
     Gd('wPink', '#dca690', '#c08e79', 16, .5, 2);
     Gd('wCream', '#e9dfc6', '#cdc3aa', 16, .5, 2);
     Gd('wGrey', '#c8c9c6', '#a9aaa7', 16, .5, 2);
-    Gd('wNew', '#f2f1ed', '#d4d3cf', 128, .6, 2.4);
     Gd('retain', '#a39e94', '#77726a', 32, .6, 4, ['#9a958b', '#aca79d']);
-    C('wTerra', 0xc9785a); C('wTan', 0xdcb891); C('wRed', 0xb24a3b); C('wDark', 0x555b63); C('wRedDark', 0x5e231d);
+    C('wTan', 0xdcb891); C('wRed', 0xb24a3b); C('wDark', 0x555b63); C('wRedDark', 0x5e231d);
     C('slab', 0xe4e1d9); C('ceil', 0xd2cfc8); N('cfloor', '#b9a58f', ['#b09c86', '#c2ae98'], 1200, 2, 3); C('col', 0xefece6);
     C('steel', 0xc2c9ce, { phong: true }); C('granDark', 0x55585c); N('stone', '#8f8a80', ['#7f7a70', '#a09b90', '#6f6b63'], 1500, 5, 3);
     C('wood', 0x8a5a3a); C('red', 0xc0392b); C('gold', 0xd8b24a); C('lamp', 0xfff1b8, { basic: true, noShadow: true });
@@ -123,10 +122,6 @@
     F('faCor', 4.5, 3.6, (g, w, h) => { wallBase(g, w, h, '#f0ede6', '#d6d2c9'); g.fillStyle = '#d5e0d0'; g.fillRect(0, 171, w, 85); g.fillStyle = '#7d5a44'; g.fillRect(20, 100, 54, 156); g.fillStyle = '#6a4a37'; g.fillRect(24, 104, 46, 148); glassG(g, 34, 116, 26, 40, '#8fb7c4', '#56808f'); win(g, 20, 66, 54, 30, 1); win(g, 108, 58, 128, 96, 3); });
     // 东侧综合楼：粉色墙面
     F('faE2', 4.5, 3.5, (g, w, h) => { wallBase(g, w, h, '#e2aa94', '#c9927c'); g.fillStyle = '#f1eee7'; g.fillRect(0, 236, w, 20); g.fillRect(0, 0, w, 10); win(g, 40, 60, 176, 116, 4, { transom: .3 }); });
-    // 外廊内墙（生活楼）
-    F('faNewCor', 4.9, 3.9, (g, w, h) => { g.fillStyle = '#f1f0ec'; g.fillRect(0, 0, w, h); g.fillStyle = '#e1e2df'; g.fillRect(0, 180, w, 76); g.fillStyle = '#5d6b78'; g.fillRect(24, 104, 54, 152); glassG(g, 36, 118, 30, 44, '#9cc3d2', '#5d8798'); win(g, 108, 60, 128, 100, 3, { frame: '#3c4248', c0: '#8fbdd0', c1: '#4a7a90' }); });
-    // 新生活楼：南向阳台
-    F('faDormS', 3.8, 3.3, (g, w, h) => { g.fillStyle = '#f3f2ee'; g.fillRect(0, 0, w, h); g.fillStyle = '#5b646d'; g.fillRect(14, 36, 228, 150); glassG(g, 28, 52, 104, 134, '#86b3c4', '#4c7b8e'); g.fillStyle = '#e8e8e6'; g.fillRect(78, 52, 4, 134); glassG(g, 150, 62, 78, 80, '#86b3c4', '#4c7b8e'); g.fillStyle = '#ecebe6'; g.fillRect(8, 186, 240, 70); g.fillStyle = '#c9785a'; g.fillRect(8, 186, 240, 10); g.fillStyle = '#d9d9d5'; for (let x = 20; x < 244; x += 16) g.fillRect(x, 200, 2, 52); });
     F('faCanteen', 4.75, 4.5, (g, w, h) => { g.fillStyle = '#e9e7e2'; g.fillRect(0, 0, w, h); g.fillStyle = '#c9785a'; g.fillRect(0, 0, w, 30); win(g, 8, 40, 240, 190, 4, { frame: '#3c4248', c0: '#9ac6d6', c1: '#4f8196', transom: .25 }); g.fillStyle = '#8f8f8a'; g.fillRect(0, 236, w, 20); });
     F('faGlass', 3, 3.6, (g, w, h) => { glassG(g, 0, 0, w, h, '#6fb1c4', '#3a7a90'); g.fillStyle = '#e9eef0'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 3, h); g.fillRect(0, 0, w, 4); g.fillRect(0, 150, w, 3); g.globalAlpha = .14; g.fillStyle = '#fff'; g.beginPath(); g.moveTo(0, h); g.lineTo(110, 0); g.lineTo(170, 0); g.lineTo(60, h); g.fill(); g.globalAlpha = 1; }, { phong: true, shininess: 110 });
     // 周边城市建筑
@@ -422,7 +417,6 @@
     /* --- 教学区 --- */
     const stOld = { win: m.faCls, cor: m.faCor, end: m.wWhite, wall: m.wWhite, par: m.wWhite, cap: m.wPink };
     const stE2 = { win: m.faE2, cor: alt(m.faCor, 4.5, 3.5), end: m.wPink, wall: m.wPink, par: m.wWhite, cap: m.wRed };
-    const stDorm = { win: m.faDormS, cor: alt(m.faNewCor, 3.8, 3.3), end: m.wNew, wall: m.wNew, par: m.wNew, cap: m.wTerra };
     // 教学楼群（第一教学大楼及其后方相连的第二教学楼、科艺楼）按需求整体前移 30 米：
     // 第一教学大楼东立面由 X=-26.5 移到 X=3.5，正好覆盖原新教学楼（X -9.5~3.5）的位置。下面仍按原始量测坐标书写。
     // 其中第二教学楼、科艺楼及其周围地面再整体抬高 RH 米（与运动场地同高），第一教学楼留在原地面高度。
@@ -508,11 +502,6 @@
     label('综合楼（宿舍·饭堂）', 145, 66, 22);
     wing({ X0: 170.6, X1: 183.2, Y0: 22.2, Y1: 45.2, fl: 3, fh: 3.4, cor: 'W', cw: 1.6, st: stE2, pc: '#ecc9b8' });
     row(126.5, 24, 126.5, 36, 6, 'b', .8); row(126.5, 50, 126.5, 66, 8, 'b', .8);
-    // 新生活楼（扩建一期，6层：首层饭堂，2-6层宿舍）
-    B.box({ N: m.faCanteen, S: m.faCanteen, E: m.wNew, W: m.faCanteen }, 127, 184, -5, 10, 0, 4.5, { fit: true });
-    wing({ X0: 127, X1: 184, Y0: -5, Y1: 10, fl: 5, fh: 3.3, bw: 3.8, base: 4.5, cor: 'N', cw: 1.8, st: stDorm, pc: '#f4f1e8' });
-    B.box(m.wTerra, 126, 185, -6.6, -5, 4.3, 4.5, { bottom: true });
-    label('生活楼（饭堂·宿舍）', 155.5, 2.5, 25);
 
     /* --- 游泳池 --- */
     B.box({ N: m.wWhite, S: m.wWhite, E: m.wWhite, W: m.wWhite }, 62, 128, 72, 108, 0, .25);
@@ -567,9 +556,18 @@
     row(170.5, -110, 170.5, -55, 7, 'b', 1.1);
 
     /* --- 球场 --- */
-    G.flat(m.courtG, 50.7, 112, -5, 10.6, .065); court(65.5, 2.8, true); court(97.4, 2.8, true); row(55, -9.8, 110, -9.8, 10.9, 'b', 1);
-    plan(50.7, 112, -5, 10.6, '#3f8f5e'); label('篮球场', 81.5, 2.8, 4);
-    G.flat(m.courtG, 156, 189, -45, -11.5, .065); court(164.5, -28, false); court(181, -28, false); plan(156, 189, -45, -11.5, '#3f8f5e');
+    // 原“篮球场”场地（中心广场与田径场之间）已整体搬到生活楼原址并改为排球场，这里只留硬化空场地和一排树
+    G.flat(m.conc, 50.7, 112, -12, 10.6, .05); row(55, -9.8, 110, -9.8, 10.9, 'b', 1);
+    // 生活楼原址：橡胶地排球场（场地大小与原篮球场场地相同，61.3×15.6 米，两个 18×9 米的场）
+    G.flat(m.courtG, 124.5, 185.8, -5, 10.6, .065); plan(124.5, 185.8, -5, 10.6, '#3f8f5e'); label('排球场', 155, 2.8, 4);
+    for (const x of [139.5, 171.4]) {
+      G.flat(m.courtR, x - 9, x + 9, -1.7, 7.3, .075); G.rectLine(m.white, x - 9, x + 9, -1.7, 7.3, .06, .1);
+      G.line(m.white, x, -1.7, x, 7.3, .06, .1); G.line(m.white, x - 3, -1.7, x - 3, 7.3, .06, .1); G.line(m.white, x + 3, -1.7, x + 3, 7.3, .06, .1);
+      B.cyl(m.steel, x, -2.7, .06, 0, 2.55, 8); B.cyl(m.steel, x, 8.3, .06, 0, 2.55, 8);
+      B.box({ E: m.net, W: m.net }, x - .01, x + .01, -2.7, 8.3, 1.43, 2.43); B.box(m.white, x - .03, x + .03, -2.7, 8.3, 2.4, 2.46);
+    }
+    // 篮球场：排球场朝田径场一侧、靠围墙的两个并排场
+    G.flat(m.courtG, 156, 189, -45, -11.5, .065); court(164.5, -28, false); court(181, -28, false); plan(156, 189, -45, -11.5, '#3f8f5e'); label('篮球场', 172.5, -28, 4);
     // 西侧新建运动场地（原土操场硬化）：整体抬高 RH 米，东缘与田径场之间是垂直挡墙
     shift(0, RH);
     // 西半部：沙地排球场三个（不画线，只设球网；球网沿 Y 方向拉开，三副网沿 Y 方向排成一行）
@@ -626,8 +624,8 @@
     PQ.spots = [
       { name: '校门', pos: [29, 131], look: [29, 90] }, { name: '林荫主道', pos: [32, 102], look: [32, 40] }, { name: '中心广场', pos: [58, 30], look: [104, 44] },
       { name: '第一教学楼 · 大楼梯', pos: [33, 37.75], look: [10, 37.75] }, { name: '花园凉亭', pos: [20, 58], look: [14, 80] },
-      { name: '田径场', pos: [81.5, -18], look: [67, -115] }, { name: '游泳池', pos: [66, 69], look: [97, 91] }, { name: '篮球场', pos: [81, 13], look: [81, 0] },
-      { name: '生活楼', pos: [150, -22], look: [156, 2] }, { name: '新建运动场地', pos: [-29, -24], look: [-75, -63] }, { name: '科艺楼', pos: [-86, 103], look: [-86, 70] },
+      { name: '田径场', pos: [81.5, -18], look: [67, -115] }, { name: '游泳池', pos: [66, 69], look: [97, 91] }, { name: '排球场', pos: [155, 13], look: [155, 2] }, { name: '篮球场', pos: [172, -8], look: [172, -28] },
+      { name: '新建运动场地', pos: [-29, -24], look: [-75, -63] }, { name: '科艺楼', pos: [-86, 103], look: [-86, 70] },
       { name: '第二教学楼', pos: [-66, -22], look: [-108, 7] }
     ];
   };
