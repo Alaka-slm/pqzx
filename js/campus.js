@@ -7,7 +7,7 @@
   /* ---------------- 地形：校园以南、西南为山林 ---------------- */
   const FLAT = [[-520, 520, -20, 520], [-122, 182, -130, -20], [-190, -122, -126, -20], [182, 520, -70, -20], [-520, -190, -45, -20]];
   const HILLS = [[70, -255, 44, 150], [-60, -240, 32, 120], [-230, -215, 34, 130], [220, -215, 26, 120], [380, -330, 40, 200], [-400, -330, 45, 220]];
-  PQ.heightAt = function (X, Y) {
+  const hill = PQ.hillAt = function (X, Y) {
     let d = 1e9;
     for (const r of FLAT) { const dx = Math.max(r[0] - X, 0, X - r[1]), dy = Math.max(r[2] - Y, 0, Y - r[3]); d = Math.min(d, Math.hypot(dx, dy)); }
     if (d <= 0) return 0;
@@ -16,6 +16,28 @@
     for (const k of HILLS) h += k[2] * Math.exp(-1.6 * ((X - k[0]) ** 2 + (Y - k[1]) ** 2) / (k[3] * k[3]));
     return s * h;
   };
+
+  /* ---------------- 拔高区（按需求设计，非实测） ----------------
+     运动场地（新建）和第二教学楼、科艺楼一带整体比田径场、第一教学楼地面高 RH 米。
+     - 第一教学楼左右两侧的路是坡道：坡底在主干道路口（X=25），左侧坡到楼间位置（X=-57.5）到顶，右侧坡到科艺楼近端（X=-65）到顶，之后是平路
+     - 第一教学楼正后方（X -57 起）到后面两栋楼之间是一整段草坡，坡顶 X = xTop(Y) */
+  const RH = PQ.RH = 2.5;
+  const rampS = PQ.rampS = X => RH * Math.min(1, Math.max(0, (25 - X) / 82.5));
+  const rampN = PQ.rampN = X => RH * Math.min(1, Math.max(0, (25 - X) / 90));
+  const xTop = Y => Y <= 33 ? -73 : Y >= 41 ? -65 : -73 + (Y - 33);
+  function raisedAt(X, Y) {
+    if (X > 25 || X < -185.2) return 0;
+    if (Y >= -27 && Y <= -17) return rampS(X);
+    if (Y >= 98 && Y <= 112.2) return (X < -153.2 || (X > 5 && Y > 108)) ? 0 : rampN(X);
+    if (Y < -27) return ((X >= -120.2 && X <= -32 && Y >= -102.2) || (X < -120 && Y >= -29.2)) ? RH : 0;
+    if (Y > -17 && Y < 98) {
+      const xt = xTop(Y);
+      if (X <= xt) return X >= (Y < 33 ? -185.2 : -153.2) ? RH : 0;
+      if (X < -57) return RH * (-57 - X) / (-57 - xt);
+    }
+    return 0;
+  }
+  PQ.heightAt = function (X, Y) { const r = raisedAt(X, Y); return r > 0 ? r : hill(X, Y); };
 
   /* ---------------- 材质与程序化贴图 ---------------- */
   PQ.makeMats = function () {
@@ -69,6 +91,7 @@
     Gd('wCream', '#e9dfc6', '#cdc3aa', 16, .5, 2);
     Gd('wGrey', '#c8c9c6', '#a9aaa7', 16, .5, 2);
     Gd('wNew', '#f2f1ed', '#d4d3cf', 128, .6, 2.4);
+    Gd('retain', '#a39e94', '#77726a', 32, .6, 4, ['#9a958b', '#aca79d']);
     C('wTerra', 0xc9785a); C('wTan', 0xdcb891); C('wRed', 0xb24a3b); C('wDark', 0x555b63); C('wRedDark', 0x5e231d);
     C('slab', 0xe4e1d9); C('ceil', 0xd2cfc8); N('cfloor', '#b9a58f', ['#b09c86', '#c2ae98'], 1200, 2, 3); C('col', 0xefece6);
     C('steel', 0xc2c9ce, { phong: true }); C('granDark', 0x55585c); N('stone', '#8f8a80', ['#7f7a70', '#a09b90', '#6f6b63'], 1500, 5, 3);
@@ -135,12 +158,12 @@
   /* ---------------- 校园建模 ---------------- */
   PQ.buildCampus = function (scene) {
     const m = PQ.mats, G = new PQ.Batch(), B = new PQ.Batch(), R = PQ.rng(2026), PI = Math.PI;
-    let SH = 0;                                   // 当前整体平移量：shift(d) 之后创建的几何、碰撞体、标注、树木都沿 X 平移 d 米
-    const shift = d => { SH = d; B.dx = d; G.dx = d; };
+    let SH = 0, SV = 0;                           // 当前整体平移量：shift(d, v) 之后创建的几何、碰撞体、标注、树木沿 X 平移 d 米，几何和标注再抬高 v 米
+    const shift = (d, v) => { SH = d; SV = v || 0; B.dx = G.dx = d; B.dy = G.dy = SV; };
     const col = (X0, X1, Y0, Y1, hmin) => PQ.colliders.push(hmin === undefined ? [X0 + SH, X1 + SH, Y0, Y1] : [X0 + SH, X1 + SH, Y0, Y1, hmin]);   // hmin：只对站在该高度附近的人生效
     const surf = (X0, X1, Y0, Y1, h, solid) => PQ.surfaces.push([X0 + SH, X1 + SH, Y0, Y1, h, solid ? 1 : 0]);   // 可行走的高处表面（台阶、平台）
     const plan = (X0, X1, Y0, Y1, c) => PQ.plan.push([X0 + SH, X1 + SH, Y0, Y1, c]);
-    const label = (name, X, Y, h) => PQ.labels.push({ name, X: X + SH, Y, h });
+    const label = (name, X, Y, h) => PQ.labels.push({ name, X: X + SH, Y, h: h + SV });
     const tree = (X, Y, t, s) => PQ.trees.push({ X: X + SH, Y, t, s: s || 1 });
     const row = (Xa, Ya, Xb, Yb, sp, t, s, jit) => { const L = Math.hypot(Xb - Xa, Yb - Ya), n = Math.max(1, Math.round(L / sp)); for (let i = 0; i <= n; i++) tree(Xa + (Xb - Xa) * i / n + (jit ? (R() - .5) * jit : 0), Ya + (Yb - Ya) * i / n + (jit ? (R() - .5) * jit : 0), t, (s || 1) * (.85 + R() * .3)); };
     const scatter = (X0, X1, Y0, Y1, n, t, s) => { for (let i = 0; i < n; i++) tree(X0 + R() * (X1 - X0), Y0 + R() * (Y1 - Y0), t, (s || 1) * (.75 + R() * .5)); };
@@ -151,7 +174,7 @@
     /* --- 地形 --- */
     (function () {
       const S = 8, n = 131, half = 520, pos = [], uv = [], idx = [];
-      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const X = -half + i * S, Y = -half + j * S; pos.push(X, PQ.heightAt(X, Y), -Y); uv.push(X / 18, Y / 18); }
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const X = -half + i * S, Y = -half + j * S; pos.push(X, PQ.hillAt(X, Y), -Y); uv.push(X / 18, Y / 18); }
       for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) { const a = j * n + i, b = a + 1, c = a + n, d = c + 1; idx.push(a, b, d, a, d, c); }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
@@ -223,13 +246,14 @@
       }
       plan(X0, X1, Y0, Y1, '#d8d2c6');
     }
-    function wall(Xa, Ya, Xb, Yb, fence) {
+    function wall(Xa, Ya, Xb, Yb, fence, base) {      // base：墙脚所在地面高度（拔高区的围墙从 0 一直砌到 base+2.3）
+      base = base || 0;
       const X0 = Math.min(Xa, Xb) - .12, X1 = Math.max(Xa, Xb) + .12, Y0 = Math.min(Ya, Yb) - .12, Y1 = Math.max(Ya, Yb) + .12;
       if (fence) {
         B.box(m.wCream, X0, X1, Y0, Y1, 0, .5);
         if (X1 - X0 > Y1 - Y0) B.box({ N: m.fence, S: m.fence }, X0, X1, (Y0 + Y1) / 2 - .01, (Y0 + Y1) / 2 + .01, .5, 2.3);
         else B.box({ E: m.fence, W: m.fence }, (X0 + X1) / 2 - .01, (X0 + X1) / 2 + .01, Y0, Y1, .5, 2.3);
-      } else { B.box(m.wCream, X0, X1, Y0, Y1, 0, 2.3); B.box(m.wRed, X0 - .05, X1 + .05, Y0 - .05, Y1 + .05, 2.3, 2.42); }
+      } else { B.box(m.wCream, X0, X1, Y0, Y1, 0, base + 2.3); B.box(m.wRed, X0 - .05, X1 + .05, Y0 - .05, Y1 + .05, base + 2.3, base + 2.42); }
       col(X0, X1, Y0, Y1);
     }
     function car(X, Y, ax, mat) {
@@ -304,15 +328,56 @@
     label('校门', 29, 110.3, 8);
 
     /* --- 围墙 --- */
-    [[-153, 112, 5, 112, 1], [45, 110, 50, 110, 1], [50, 110, 50, 131, 1], [50, 131, 165, 131, 1], [165, 131, 165, 52], [165, 52, 190, 52], [190, 52, 190, -50], [190, -50, 174, -50], [174, -50, 174, -128],
-      [174, -128, -25, -128], [-25, -128, -25, -102], [-25, -102, -120, -102], [-120, -102, -120, -29], [-120, -29, -185, -29], [-185, -29, -185, 33], [-185, 33, -153, 33], [-153, 33, -153, 112]]
-      .forEach(w => wall(w[0], w[1], w[2], w[3], w[4]));
+    [[-153, 112, -65, 112, 0, RH], [45, 110, 50, 110, 1], [50, 110, 50, 131, 1], [50, 131, 165, 131, 1], [165, 131, 165, 52], [165, 52, 190, 52], [190, 52, 190, -50], [190, -50, 174, -50], [174, -50, 174, -128],
+      [174, -128, -25, -128], [-25, -128, -25, -102], [-25, -102, -32, -102], [-32, -102, -120, -102, 0, RH], [-120, -102, -120, -29, 0, RH], [-120, -29, -185, -29, 0, RH], [-185, -29, -185, 33, 0, RH], [-185, 33, -153, 33, 0, RH], [-153, 33, -153, 112, 0, RH]]
+      .forEach(w => wall(w[0], w[1], w[2], w[3], w[4], w[5]));
 
     /* --- 道路与铺装 --- */
-    [[25, 39, -17, 110], [3.5, 25, 22, 58], [-150, 25, 98, 108], [-190, 26, -27, -17],
+    [[25, 39, -17, 110], [3.5, 25, 22, 58], [25, 26, -27, -17],
       [39, 150, 10.6, 14], [39, 50.7, -12, 14], [104, 165, 14, 72], [128, 165, 72, 131], [165, 190, 14, 52], [112, 190, -12, 14]]
       .forEach(r => G.flat(m.conc, r[0], r[1], r[2], r[3], .05));
     plan(25, 39, -17, 110, '#c9c6bd'); plan(-190, 26, -27, -17, '#c9c6bd'); plan(-150, 25, 98, 108, '#c9c6bd');
+
+    /* --- 拔高区：高台、挡墙、两侧坡道、楼后草坡（高度函数见文件开头 raisedAt） --- */
+    (function () {
+      const H = RH, rS = PQ.rampS, rN = PQ.rampN, R0 = m.retain;
+      // 高台顶面 + 四周垂直挡墙（朝田径场一侧即运动场地东缘 X=-32）
+      const P = [[-185, -29], [-120, -29], [-120, -102], [-32, -102], [-32, -27], [-57.5, -27], [-57.5, -17], [-73, -17], [-73, 33], [-65, 41], [-65, 112], [-153, 112], [-153, 33], [-185, 33]];
+      G.poly(m.grass, P, H);
+      P.forEach((a, i) => {
+        if (i >= 5 && i <= 9) return;               // 与坡道顶、草坡顶相接的边不需要挡墙
+        const b = P[(i + 1) % P.length], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
+        B.quad(R0, [a[0], 0, -a[1]], [b[0], 0, -b[1]], [b[0], H, -b[1]], [a[0], H, -a[1]], [dy / L, 0, dx / L], [0, 0, L / R0.tw, 0, L / R0.tw, H / R0.th, 0, H / R0.th]);
+      });
+      // 平路段（高处）与坡道路面
+      shift(0, H); G.flat(m.conc, -185, -57.5, -27, -17, .05); G.flat(m.conc, -150, -65, 98, 108, .05); shift(0);
+      const rq = (mat, x0, x1, y0, y1, hf, off) => G.quad(mat, [x0, hf(x0) + off, -y0], [x1, hf(x1) + off, -y0], [x1, hf(x1) + off, -y1], [x0, hf(x0) + off, -y1], [0, 1, 0],
+        [x0 / mat.tw, y0 / mat.th, x1 / mat.tw, y0 / mat.th, x1 / mat.tw, y1 / mat.th, x0 / mat.tw, y1 / mat.th]);
+      rq(m.conc, -57.5, 25, -27, -17, rS, .05);                              // 左侧坡道（靠运动场地）
+      rq(m.conc, -65, 25, 98, 108, rN, .05); rq(m.lawn, -65, 5, 108, 112, rN, .03);   // 右侧坡道（通往科艺楼）
+      // 坡道两侧的挡墙兼护栏：墙顶随坡度升高，比路面高 ex 米
+      const rw = (mat, xa, xb, y0, y1, hf, ex) => {
+        const ta = hf(xa) + ex, tb = hf(xb) + ex, u0 = xa / mat.tw, u1 = xb / mat.tw, t = mat.th;
+        B.quad(mat, [xb, 0, -y1], [xa, 0, -y1], [xa, ta, -y1], [xb, tb, -y1], [0, 0, -1], [u1, 0, u0, 0, u0, ta / t, u1, tb / t]);
+        B.quad(mat, [xa, 0, -y0], [xb, 0, -y0], [xb, tb, -y0], [xa, ta, -y0], [0, 0, 1], [u0, 0, u1, 0, u1, tb / t, u0, ta / t]);
+        B.quad(mat, [xa, ta, -y0], [xb, tb, -y0], [xb, tb, -y1], [xa, ta, -y1], [0, 1, 0], [u0, 0, u1, 0, u1, .1, u0, .1]);
+        B.quad(mat, [xb, 0, -y0], [xb, 0, -y1], [xb, tb, -y1], [xb, tb, -y0], [1, 0, 0], [0, 0, .1, 0, .1, tb / t, 0, tb / t]);
+        B.quad(mat, [xa, 0, -y1], [xa, 0, -y0], [xa, ta, -y0], [xa, ta, -y1], [-1, 0, 0], [0, 0, .1, 0, .1, ta / t, 0, ta / t]);
+        col(xa, xb, y0, y1);
+      };
+      rw(R0, -71.5, -57.5, -17, -16.75, rS, .9); rw(R0, -57.5, 25, -17, -16.75, rS, .9);   // 左坡道北侧：墙下就是第一教学楼旁的小巷
+      rw(R0, -32, 25, -27.25, -27, rS, .9);                                                // 左坡道南侧
+      rw(R0, -65, 25, 97.75, 98, rN, .9);                                                  // 右坡道南侧：墙下是第一教学楼另一侧的小巷
+      rw(R0, 5, 25, 108, 108.25, rN, .9); B.box(R0, 5, 5.25, 108.25, 112, 0, rN(5) + .9); col(5, 5.25, 108.25, 112);
+      rw(m.wCream, -65, 5, 111.88, 112.12, rN, 2.3);                                       // 右坡道北侧的校园围墙随坡升高
+      // 高台边缘护栏：排球场一侧高于坡道，东缘高于田径场
+      shift(0, H); B.box(R0, -57.5, -32, -27.25, -27, 0, .9); B.box(R0, -32.25, -32, -102, -27.25, 0, .9); shift(0);
+      col(-57.5, -32, -27.25, -27); col(-32.25, -32, -102, -27.25);
+      // 第一教学楼正后方：整段草坡 + 一排树
+      const sl = (ya, yb, xa, xb) => { const w = -57 - (xa + xb) / 2, k = Math.hypot(H, w); G.quad(m.lawn, [xa, H + .02, -ya], [-57, .02, -ya], [-57, .02, -yb], [xb, H + .02, -yb], [H / k, w / k, 0], [xa / 10, ya / 10, -5.7, ya / 10, -5.7, yb / 10, xb / 10, yb / 10]); };
+      sl(-17, 33, -73, -73); sl(33, 41, -73, -65); sl(41, 98, -65, -65);
+      row(-61, -12, -61, 94, 8, 'b', .9);
+    })();
     for (let y = -10; y < 104; y += 9) G.line(m.yellow, 32, y, 32, y + 4.5, .12, .065);
     // 中心广场：灰色花岗岩 + 红色石带
     G.poly(m.granite, [[39, 14], [104, 14], [104, 72], [61, 72], [61, 52], [39, 52]], .06); plan(39, 104, 14, 72, '#bdbcb8');
@@ -346,7 +411,7 @@
     B.box(m.wDark, 16.98, 17.18, 49.5, 49.8, .4, 1.5); B.box(m.wDark, 16.98, 17.18, 53.2, 53.5, .4, 1.5);
     label('花园', 15, 76, 6);
     // 主干道棕榈与宣传栏
-    row(23.9, 62, 23.9, 106, 7.4, 'p', 1.15); row(40.3, 76, 40.3, 106, 7.5, 'p', 1.15); row(6, 107.5, 18, 107.5, 6, 'p', 1.1); tree(46.8, 100.5, 'p', 1.2);
+    row(23.9, 62, 23.9, 106, 7.4, 'p', 1.15); row(40.3, 76, 40.3, 106, 7.5, 'p', 1.15); row(6, 109.2, 18, 109.2, 6, 'p', 1.1); tree(46.8, 100.5, 'p', 1.2);
     ['#c0392b', '#2f6fb3', '#2e9a5b', '#d0892a'].forEach((c, i) => {
       const y0 = 78 + i * 6.6, mb = PQ.M('board' + i, { map: PQ.tex(256, 128, (g, w, h) => { g.fillStyle = '#f4f2ea'; g.fillRect(0, 0, w, h); g.fillStyle = c; g.fillRect(0, 0, w, 26); g.fillRect(8, 36, 110, 82); g.fillStyle = '#9aa0a6'; for (let k = 0; k < 7; k++) g.fillRect(130, 40 + k * 11, 60 + ((k * 37) % 50), 4); }, { clamp: true }) });
       B.box({ W: mb }, 42.6, 42.7, y0, y0 + 5, .9, 2.6, { full: true }); B.box({ E: m.wGrey, N: m.wGrey, S: m.wGrey }, 42.6, 42.7, y0, y0 + 5, .9, 2.6);
@@ -359,8 +424,9 @@
     const stDorm = { win: m.faDormS, cor: alt(m.faNewCor, 3.8, 3.3), end: m.wNew, wall: m.wNew, par: m.wNew, cap: m.wTerra };
     // 教学楼群（第一教学大楼及其后方相连的第二教学楼、科艺楼）按需求整体前移 30 米：
     // 第一教学大楼东立面由 X=-26.5 移到 X=3.5，正好覆盖原新教学楼（X -9.5~3.5）的位置。下面仍按原始量测坐标书写。
-    shift(30);
-    [[-150, -141, 32, 98], [-94.5, -87.5, -17, 98], [-150, -87.5, 31.5, 40], [-124.7, -107.5, 49, 90.5]].forEach(r => G.flat(m.conc, r[0], r[1], r[2], r[3], .05));
+    // 其中第二教学楼、科艺楼及其周围地面再整体抬高 RH 米（与运动场地同高），第一教学楼留在原地面高度。
+    shift(30, RH);
+    [[-150, -141, 32, 98], [-150, -103, 31.5, 40], [-124.7, -107.5, 49, 90.5]].forEach(r => G.flat(m.conc, r[0], r[1], r[2], r[3], .05));
     // 科艺楼（西北，4层，U形）
     wing({ X0: -136, X1: -124.7, Y0: 49, Y1: 93, fl: 4, cor: 'E', st: stOld });
     wing({ X0: -107.5, X1: -95, Y0: 49, Y1: 93, fl: 4, cor: 'W', st: stOld });
@@ -378,6 +444,7 @@
     G.flat(m.lawn, -159.5, -144, -8.6, 25, .045); G.flat(m.lawn, -132, -115, -8.6, 25, .045);
     scatter(-157, -147, -4, 20, 3, 'b', .9); scatter(-129, -118, -4, 20, 3, 'b', .9); row(-180.5, -24, -180.5, 30, 7, 'b', 1);
     label('第二教学楼', -138, 7, 21);
+    shift(30, 0);
     // 第一教学大楼（5层，围合两个庭院，东侧为玻璃幕墙门厅）
     wing({ X0: -75, X1: -61, Y0: -3, Y1: 60, fl: 5, cor: 'E', st: stOld });
     wing({ X0: -80, X1: -61, Y0: 60, Y1: 82, fl: 5, st: stOld });
@@ -396,7 +463,6 @@
     B.box({ E: txtM('slogS', '千教万教教人求真', slog, slogM) }, -26.2, -26.19, -1, 29, 19.3, 21.6, { full: true });
     B.box({ E: txtM('slogN', '千学万学学做真人', slog, slogM) }, -28.0, -27.99, 46.5, 78.5, 19.3, 21.6, { full: true });
     G.flat(m.lawn, -61, -39.5, 44.5, 80, .045); G.flat(m.lawn, -61, -37.5, -3, 31, .045); scatter(-58, -43, 48, 77, 4, 'b', .9); scatter(-58, -41, 0, 28, 5, 'b', .9);
-    B.box(m.slab, -103, -86.5, 35, 38, 3.0, 3.2, { bottom: true }); for (let x = -102; x < -87; x += 4.8) { B.cyl(m.col, x, 35.3, .12, 0, 3, 8); B.cyl(m.col, x, 37.7, .12, 0, 3, 8); }
     label('第一教学楼', -52, 37, 25);
     shift(0);
     row(-148, 110.3, -2, 110.3, 9.5, 'b', 1);
@@ -503,7 +569,8 @@
     G.flat(m.courtG, 50.7, 112, -5, 10.6, .065); court(65.5, 2.8, true); court(97.4, 2.8, true); row(55, -9.8, 110, -9.8, 10.9, 'b', 1);
     plan(50.7, 112, -5, 10.6, '#3f8f5e'); label('篮球场', 81.5, 2.8, 4);
     G.flat(m.courtG, 156, 189, -45, -11.5, .065); court(164.5, -28, false); court(181, -28, false); plan(156, 189, -45, -11.5, '#3f8f5e');
-    // 西侧新建运动场地（原土操场硬化）
+    // 西侧新建运动场地（原土操场硬化）：整体抬高 RH 米，东缘与田径场之间是垂直挡墙
+    shift(0, RH);
     G.flat(m.courtB, -117, -32, -97, -30, .06); plan(-117, -32, -97, -30, '#4a82b4');
     court(-101, -46, false); court(-80, -46, false); court(-101, -80.5, false); court(-80, -80.5, false);
     for (const x of [-56, -42]) {                // 排球场 9×18
@@ -513,6 +580,7 @@
     for (let i = 0; i < 6; i++) { const x = -60 + i * 4.6; B.cyl(m.steel, x, -80, .05, 0, 2.3, 8); B.cyl(m.steel, x, -77.8, .05, 0, 2.3, 8); B.box(m.steel, x - .04, x + .04, -80, -77.8, 2.26, 2.34); }
     row(-22, -95, -22, -33, 8, 'b', 1); row(-28, -99.6, -114, -99.6, 9.5, 'b', .9);
     label('运动场地（新建）', -74, -63, 4);
+    shift(0);
 
     /* --- 教师宿舍（桃李园，校园西南） --- */
     const stRes = [0, 1, 2, 3].map(i => ({ win: m['faRes' + i], cor: m['faRes' + i], end: m['faRes' + i], wall: m.wGrey, par: m.wGrey, cap: m.wGrey }));
@@ -531,7 +599,7 @@
     [[38, -246], [62, -262], [90, -250], [108, -270], [18, -272], [-76, -236], [-52, -252], [-222, -206], [-246, -226], [-204, -238], [214, -212], [242, -226], [130, -258], [-100, -258]].forEach(v => villa(v[0], v[1]));
     for (let i = 0; i < 12; i++) villa(-250 + R() * 110, -190 + R() * 70);
     for (let i = 0; i < 1700; i++) {
-      const X = -505 + R() * 1010, Y = -505 + R() * 485, h = PQ.heightAt(X, Y);
+      const X = -505 + R() * 1010, Y = -505 + R() * 485, h = PQ.hillAt(X, Y);   // 只在山地种林，不含校内拔高区
       if (h < 1.2) continue;
       if (X > -178 && X < -120 && Y > -116 && Y < -80) continue;
       tree(X, Y, R() < .1 ? 'c' : 'f', 1 + R() * .7);

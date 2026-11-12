@@ -178,7 +178,7 @@
           f.y = Math.max(PQ.heightAt(f.x, -f.z) + 0.6, Math.min(600, f.y));
         } else {
           let vx = -sy * mz + cy * ax, vz = -cy * mz - sy * ax; const l = Math.hypot(vx, vz);
-          if (l > 0) { const v = (fast ? 11 : 4.6) * dt / l, ox = f.x, oz = f.z; f.x += vx * v; f.z += vz * v; collide(f); if (blockedAt(f.x, -f.z, f.y - 1.65)) { f.x = ox; f.z = oz; } }
+          if (l > 0) { const v = (fast ? 11 : 4.6) * dt / l, ox = f.x, oz = f.z; f.x += vx * v; f.z += vz * v; collide(f); const ft = f.y - 1.65; if (blockedAt(f.x, -f.z, ft) || PQ.heightAt(f.x, -f.z) - ft > 0.6) { f.x = ox; f.z = oz; } }   // 挡墙、陡坎迈不上去
           const g = Math.max(PQ.heightAt(f.x, -f.z), surfaceAt(f.x, -f.z, f.y - 1.65)) + 1.65;
           f.vy -= 22 * dt; f.y += f.vy * dt;
           if (f.y <= g) { f.y = g; f.vy = 0; if (keys.Space) f.vy = 6.8; }
