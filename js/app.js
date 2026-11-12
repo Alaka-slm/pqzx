@@ -134,7 +134,7 @@
       keys[e.code] = true;
       if (e.code === 'Digit1') setMode('top'); else if (e.code === 'Digit2') setMode('bird'); else if (e.code === 'Digit3') setMode('fp');
       else if (e.code === 'KeyF' && S.mode === 'fp') { S.fp.fly = !S.fp.fly; S.fp.vy = 0; hint(); }
-      else if (e.code === 'KeyL') $('tgLabel').click(); else if (e.code === 'KeyM') $('tgMini').click();
+      else if (e.code === 'KeyM') $('tgMini').click();
       if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
     });
     window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -221,24 +221,9 @@
     PQ.goSpot = goSpot;
     sel.addEventListener('change', () => { if (sel.value !== '') goSpot(+sel.value); sel.value = ''; sel.blur(); });
     $('time').addEventListener('input', e => setSun(+e.target.value));
-    let showLabels = true, showMini = true;
-    $('tgLabel').addEventListener('click', e => { showLabels = !showLabels; e.target.classList.toggle('on', showLabels); $('labels').style.display = showLabels ? 'block' : 'none'; e.target.blur(); });
+    let showMini = true;
     $('tgMini').addEventListener('click', e => { showMini = !showMini; e.target.classList.toggle('on', showMini); $('miniWrap').style.display = showMini ? 'block' : 'none'; e.target.blur(); });
     $('bReset').addEventListener('click', e => { S.top = { x: 0, z: -8, zoom: 1, rot: 0 }; S.bird = { tx: 10, tz: 0, r: 420, th: Math.PI, ph: 0.92 }; e.target.blur(); });
-
-    /* 建筑标注 */
-    const tmp = new THREE.Vector3();
-    const labelEls = PQ.labels.map(l => { const e = document.createElement('div'); e.className = 'lb'; e.textContent = l.name; $('labels').appendChild(e); return { e, v: new THREE.Vector3(l.X, l.h, -l.Y) }; });
-    function updateLabels(cam) {
-      if (!showLabels) return;
-      const w = window.innerWidth, h = window.innerHeight;
-      for (const L of labelEls) {
-        tmp.copy(L.v).project(cam);
-        const vis = tmp.z > -1 && tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05 && (S.mode !== 'fp' || L.v.distanceTo(cam.position) < 140);
-        if (vis) { L.e.style.display = 'block'; L.e.style.transform = 'translate(-50%,-50%) translate(' + ((tmp.x * .5 + .5) * w).toFixed(1) + 'px,' + ((-tmp.y * .5 + .5) * h).toFixed(1) + 'px)'; }
-        else L.e.style.display = 'none';
-      }
-    }
 
     /* 小地图（校园坐标系：上方为环市西路/东北方向） */
     const mini = $('mini'), mg = mini.getContext('2d'), MW = mini.width, MH = mini.height, MS = 0.58;
@@ -284,7 +269,7 @@
       const cam = applyCam();
       sky.position.copy(cam.position);
       renderer.render(scene, cam);
-      updateLabels(cam); drawMini();
+      drawMini();
       fN++; fT += dt;
       if (fT > 1) {            // 帧率过低时自动降低渲染分辨率
         PQ.fps = fN / fT; fN = 0; fT = 0;

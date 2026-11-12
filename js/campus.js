@@ -154,12 +154,11 @@
   /* ---------------- 校园建模 ---------------- */
   PQ.buildCampus = function (scene) {
     const m = PQ.mats, G = new PQ.Batch(), B = new PQ.Batch(), R = PQ.rng(2026), PI = Math.PI;
-    let SH = 0, SV = 0;                           // 当前整体平移量：shift(d, v) 之后创建的几何、碰撞体、标注、树木沿 X 平移 d 米，几何和标注再抬高 v 米
+    let SH = 0, SV = 0;                           // 当前整体平移量：shift(d, v) 之后创建的几何、碰撞体、树木沿 X 平移 d 米，几何再抬高 v 米
     const shift = (d, v) => { SH = d; SV = v || 0; B.dx = G.dx = d; B.dy = G.dy = SV; };
     const col = (X0, X1, Y0, Y1, hmin) => PQ.colliders.push(hmin === undefined ? [X0 + SH, X1 + SH, Y0, Y1] : [X0 + SH, X1 + SH, Y0, Y1, hmin]);   // hmin：只对站在该高度附近的人生效
     const surf = (X0, X1, Y0, Y1, h, solid) => PQ.surfaces.push([X0 + SH, X1 + SH, Y0, Y1, h, solid ? 1 : 0]);   // 可行走的高处表面（台阶、平台）
     const plan = (X0, X1, Y0, Y1, c) => PQ.plan.push([X0 + SH, X1 + SH, Y0, Y1, c]);
-    const label = (name, X, Y, h) => PQ.labels.push({ name, X: X + SH, Y, h: h + SV });
     const tree = (X, Y, t, s) => PQ.trees.push({ X: X + SH, Y, t, s: s || 1 });
     const row = (Xa, Ya, Xb, Yb, sp, t, s, jit) => { const L = Math.hypot(Xb - Xa, Yb - Ya), n = Math.max(1, Math.round(L / sp)); for (let i = 0; i <= n; i++) tree(Xa + (Xb - Xa) * i / n + (jit ? (R() - .5) * jit : 0), Ya + (Yb - Ya) * i / n + (jit ? (R() - .5) * jit : 0), t, (s || 1) * (.85 + R() * .3)); };
     const scatter = (X0, X1, Y0, Y1, n, t, s) => { for (let i = 0; i < n; i++) tree(X0 + R() * (X1 - X0), Y0 + R() * (Y1 - Y0), t, (s || 1) * (.75 + R() * .5)); };
@@ -321,7 +320,6 @@
     // 门卫室
     B.box({ N: m.faCanteen, W: m.faCanteen, S: m.wCream, E: m.wCream }, 38.5, 45, 103.5, 110, 0, 3.2, { fit: true }); B.box(m.slab, 37.6, 45.9, 102.7, 111.3, 3.2, 3.5, { bottom: true });
     col(38.5, 45, 103.5, 110); plan(38.5, 45, 103.5, 110, '#e8e2d6');
-    label('校门', 29, 110.3, 8);
 
     /* --- 围墙 --- */
     [[-153, 112, -65, 112, 0, RH], [45, 110, 50, 110, 1], [50, 110, 50, 131, 1], [50, 131, 165, 131, 1], [165, 131, 165, 52], [165, 52, 190, 52], [190, 52, 190, -50], [190, -50, 174, -50], [174, -50, 174, -128],
@@ -380,7 +378,6 @@
     G.arc(m.granR, 72, 38, 21, 0, 2 * PI, 1.1, .075, 56); G.arc(m.granR, 72, 38, 10.5, 0, 2 * PI, .9, .075, 40);
     for (let k = 0; k < 8; k++) { const a = k * PI / 4 + PI / 8; G.line(m.granR, 72 + 10.5 * Math.cos(a), 38 + 10.5 * Math.sin(a), 72 + 21 * Math.cos(a), 38 + 21 * Math.sin(a), .9, .075); }
     G.line(m.granR, 40, 15.5, 103, 15.5, 1, .075); G.line(m.granR, 103, 15.5, 103, 71, 1, .075); G.line(m.granR, 62, 71, 103, 71, 1, .075); G.line(m.granR, 40, 15.5, 40, 51, 1, .075);
-    label('中心广场', 72, 38, 3);
     G.flat(m.lawn, 39.6, 60.4, 52.6, 71.4, .08); B.box(m.hedge, 39.6, 60.4, 52.6, 53.4, 0, .6); scatter(42, 58, 55, 70, 7, 'b', 1.1);
     G.flat(m.lawn, 41, 62, 73, 108, .045); scatter(46, 60, 76, 105, 9, 'b', 1.05);
     G.flat(m.lawn, 62, 165, 108, 131, .045); scatter(96, 160, 111, 128, 10, 'b', 1.1);
@@ -405,7 +402,6 @@
     const mLed = PQ.M('led', { basic: true, map: PQ.tex(512, 256, (g, w, h) => { g.fillStyle = '#120606'; g.fillRect(0, 0, w, h); g.font = 'bold 76px ' + SANS; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ff3a2a'; g.fillText('鸿鹄怀宏志', w / 2, 82); g.fillText('高翔翱万里', w / 2, 176); g.fillStyle = '#120606'; for (let y = 0; y < h; y += 4) g.fillRect(0, y, w, 1); }, { clamp: true }) });
     B.box({ E: mLed }, 17.0, 17.16, 48.9, 54.1, 1.5, 4.1, { full: true }); B.box({ N: m.wDark, S: m.wDark, W: m.wDark, T: m.wDark }, 17.0, 17.16, 48.9, 54.1, 1.5, 4.1);
     B.box(m.wDark, 16.98, 17.18, 49.5, 49.8, .4, 1.5); B.box(m.wDark, 16.98, 17.18, 53.2, 53.5, .4, 1.5);
-    label('花园', 15, 76, 6);
     // 主干道棕榈与宣传栏
     row(23.9, 62, 23.9, 106, 7.4, 'p', 1.15); row(40.3, 76, 40.3, 106, 7.5, 'p', 1.15); row(6, 109.2, 18, 109.2, 6, 'p', 1.1); tree(46.8, 100.5, 'p', 1.2);
     ['#c0392b', '#2f6fb3', '#2e9a5b', '#d0892a'].forEach((c, i) => {
@@ -429,7 +425,6 @@
     link(-124.7, -107.5, 90.5, 93, 4, 3.6, stOld, 2);
     G.flat(m.lawn, -121, -111, 54, 76, .06); tree(-118, 60, 'b', 1); tree(-114, 70, 'b', .9);
     car(-121, 84, false, m.carW); car(-117.5, 84, false, m.carK); car(-113, 84, false, m.carS);
-    label('科艺楼', -115.5, 67, 17);
     // 第二教学楼（西南，5层，三排）
     wing({ X0: -173.5, X1: -159.5, Y0: -8.6, Y1: 25, fl: 5, cor: 'E', st: stOld });
     wing({ X0: -144, X1: -132, Y0: -8.6, Y1: 25, fl: 5, cor: 'E', st: stOld });
@@ -438,7 +433,6 @@
     link(-173.5, -103, 25, 30, 5, 3.6, stOld);
     G.flat(m.lawn, -159.5, -144, -8.6, 25, .045); G.flat(m.lawn, -132, -115, -8.6, 25, .045);
     scatter(-157, -147, -4, 20, 3, 'b', .9); scatter(-129, -118, -4, 20, 3, 'b', .9); row(-180.5, -24, -180.5, 30, 7, 'b', 1);
-    label('第二教学楼', -138, 7, 21);
     shift(30, 0);
     // 第一教学大楼（5层，围合两个庭院，东侧为玻璃幕墙门厅）
     wing({ X0: -75, X1: -61, Y0: -3, Y1: 60, fl: 5, cor: 'E', st: stOld });
@@ -458,7 +452,6 @@
     B.box({ E: txtM('slogS', '千教万教教人求真', slog, slogM) }, -26.2, -26.19, -1, 29, 19.3, 21.6, { full: true });
     B.box({ E: txtM('slogN', '千学万学学做真人', slog, slogM) }, -28.0, -27.99, 46.5, 78.5, 19.3, 21.6, { full: true });
     G.flat(m.lawn, -61, -39.5, 44.5, 80, .045); G.flat(m.lawn, -61, -37.5, -3, 31, .045); scatter(-58, -43, 48, 77, 4, 'b', .9); scatter(-58, -41, 0, 28, 5, 'b', .9);
-    label('第一教学楼', -52, 37, 25);
     shift(0);
     row(-148, 110.3, -2, 110.3, 9.5, 'b', 1);
     scatter(-182, -149, -14, 30, 12, 'b', 1.1); scatter(-150, -124, 42, 96, 9, 'b', 1.1);   // 教学楼群前移后空出的西侧绿地
@@ -475,7 +468,7 @@
       flight(21.2, 1.8, 11);                                 // 第二跑：11 级到地面
       for (let x = 16.15; x < 24.5; x += 1.2) { const h = x < 19.6 ? 3.6 - Math.ceil((x - 16) / .3) * .15 : x < 21.2 ? 1.8 : 1.8 - Math.ceil((x - 21.2) / .3) * .15; B.cyl(m.steel, x, 37.75, .03, h, h + .95, 6, m.steel); }
       col(16, 24.5, y0 - .3, y0); col(16, 24.5, y1, y1 + .3);
-      plan(9.5, 16, y0 - .5, y1 + .5, '#d8d2c6'); plan(16, 24.5, y0, y1, '#c9c6bd'); label('大楼梯', 20.4, 37.75, 4.5);
+      plan(9.5, 16, y0 - .5, y1 + .5, '#d8d2c6'); plan(16, 24.5, y0, y1, '#c9c6bd');
     })();
 
     /* --- 生活区（东侧） --- */
@@ -493,13 +486,12 @@
         B.quad(m.slab, [102.4, h0 - .22, -y1], [102.4, h0 - .22, -y0], [102.4, h0, -y0], [102.4, h1, -y1], [-1, 0, 0], [0, 0, 1, 0, 1, 1, 0, 1]);
       }
     }
-    col(104, 123.2, 20.5, 68); plan(104, 123.2, 20.5, 68, '#ead9c6'); label('学生宿舍', 112, 44, 28);
+    col(104, 123.2, 20.5, 68); plan(104, 123.2, 20.5, 68, '#ead9c6');
     // 综合楼（5层，两排 + 连接体，含三个天井）
     wing({ X0: 131.7, X1: 141, Y0: 20, Y1: 102.3, fl: 5, fh: 3.5, cor: 'W', cw: 1.8, st: stE2, pc: '#ecc9b8' });
     wing({ X0: 149, X1: 158.7, Y0: 20, Y1: 102.3, fl: 5, fh: 3.5, cor: 'W', cw: 1.8, st: stE2, pc: '#ecc9b8' });
     for (const y of [[92.6, 102.3], [63.7, 73.4], [42.9, 53.3], [20, 31]]) { B.box({ N: m.wPink, S: m.wPink, T: m.roof }, 141, 149, y[0], y[1], 0, 17.5); plan(141, 149, y[0], y[1], '#ecc9b8'); col(141, 149, y[0], y[1]); }
     B.box({ N: m.wWhite, S: m.wWhite, T: m.roof }, 123.2, 131.7, 39.2, 45.9, 3.4, 17.5, { bottom: true });
-    label('综合楼（宿舍·饭堂）', 145, 66, 22);
     wing({ X0: 170.6, X1: 183.2, Y0: 22.2, Y1: 45.2, fl: 3, fh: 3.4, cor: 'W', cw: 1.6, st: stE2, pc: '#ecc9b8' });
     row(126.5, 24, 126.5, 36, 6, 'b', .8); row(126.5, 50, 126.5, 66, 8, 'b', .8);
 
@@ -516,7 +508,7 @@
       if (f[0] === f[1]) B.box({ E: m.fence, W: m.fence }, f[0] - .01, f[0] + .01, f[2], f[3], .25, 2.25); else B.box({ N: m.fence, S: m.fence }, f[0], f[1], f[2] - .01, f[2] + .01, .25, 2.25);
       col(Math.min(f[0], f[1]) - .1, Math.max(f[0], f[1]) + .1, f[2] - .1, f[3] + .1);
     }
-    plan(72, 122, 80, 102, '#3aa5c2'); plan(74, 88, 115.5, 125, '#3aa5c2'); label('游泳池', 97, 91, 4);
+    plan(72, 122, 80, 102, '#3aa5c2'); plan(74, 88, 115.5, 125, '#3aa5c2');
 
     /* --- 田径场 --- */
     const TC = { cx: 81.5, cy: -61.5, hl: 42.195 }; PQ.track = TC;
@@ -538,7 +530,7 @@
       B.box({ E: m.net, W: m.net }, gx + s * 1.8 - .01, gx + s * 1.8 + .01, TC.cy - 3.66, TC.cy + 3.66, 0, 2.44);
       B.box({ T: m.net }, Math.min(gx, gx + s * 1.8), Math.max(gx, gx + s * 1.8), TC.cy - 3.66, TC.cy + 3.66, 2.43, 2.44);
     }
-    plan(-8, 172, -112.5, -12, '#a9bfa6'); label('田径场', 81.5, -61.5, 3);
+    plan(-8, 172, -112.5, -12, '#a9bfa6');
     // 主席台（南侧）、彩色看台、标语牌、旗杆
     B.box(m.slab, 57, 78, -123, -113, 0, 1.2); B.box(m.wWhite, 57, 78, -123.4, -123, 1.2, 6); B.box(m.wWhite, 57, 57.3, -123, -116, 1.2, 6); B.box(m.wWhite, 77.7, 78, -123, -116, 1.2, 6);
     B.box({ N: m.wWhite, S: m.wWhite, E: m.wWhite, W: m.wWhite, T: m.roofW, B: m.ceil }, 56, 79, -124, -111.6, 6, 6.4);
@@ -546,7 +538,7 @@
     B.box({ N: txtM('rost', '台山市鹏权中学', { cell: 128, bg: '#f6f4ee', color: '#c2261c', font: SANS, size: .74 }) }, 58, 77, -111.62, -111.58, 6.45, 7.75, { full: true });
     B.box({ S: m.wWhite, E: m.wWhite, W: m.wWhite, T: m.wWhite }, 58, 77, -111.9, -111.62, 6.4, 7.75);
     B.box(m.slab, 61, 74, -113, -112.2, 0, .8); B.box(m.slab, 61, 74, -112.2, -111.4, 0, .4);
-    col(57, 78, -123.4, -113); plan(56, 79, -124, -112, '#e8e2d6'); label('主席台', 67.5, -118, 9.5);
+    col(57, 78, -123.4, -113); plan(56, 79, -124, -112, '#e8e2d6');
     const terr = (x0, x1, mat) => { for (let k = 0; k < 3; k++) B.box(mat, x0, x1, -113.6 - k * .8, -112.8 - k * .8, 0, (k + 1) * .4); };
     terr(14, 26, m.stR); terr(26, 38, m.stY); terr(38, 48, m.stG); terr(80, 104, m.stG); terr(104, 128, m.stY); terr(128, 151, m.stR);
     const boards = (txt, xa, xb) => { for (let i = 0; i < txt.length; i++) { const x = xa + (xb - xa) * i / (txt.length - 1); B.box({ N: txtM('sb_' + txt[i] + i + xa, txt[i], { cell: 128, bg: '#e8c53a', color: '#c2261c', font: SANS, size: .8 }) }, x - .85, x + .85, -117.05, -117, 2.5, 4.2, { full: true }); B.box({ S: m.stY, E: m.stY, W: m.stY, T: m.stY }, x - .85, x + .85, -117.1, -117.05, 2.5, 4.2); B.cyl(m.steel, x, -117.15, .06, 0, 2.5, 6); } };
@@ -567,8 +559,7 @@
       B.cyl(m.steel, x - 5.5, 0, .06, 0, 2.55, 8); B.cyl(m.steel, x + 5.5, 0, .06, 0, 2.55, 8);
       B.box({ N: m.net, S: m.net }, x - 5.5, x + 5.5, -.01, .01, 1.43, 2.43); B.box(m.white, x - 5.5, x + 5.5, -.03, .03, 2.4, 2.46);
     }
-    label('排球场', 171.5, 0, 4);
-    court(141, -7.75, true); court(141, 7.75, true); label('篮球场', 141, 0, 4);   // 两个篮球场左右并排，长边沿 X 方向（与排球场垂直）
+    court(141, -7.75, true); court(141, 7.75, true);   // 两个篮球场左右并排，长边沿 X 方向（与排球场垂直）
     G.flat(m.apron, 156, 189, -45, -15.5, .055);     // 原田径场东端篮球场的位置，改为空场地
     // 西侧新建运动场地（原土操场硬化）：整体抬高 RH 米，东缘与田径场之间是垂直挡墙
     shift(0, RH);
@@ -594,13 +585,12 @@
       }
     })();
     row(-22, -95, -22, -33, 8, 'b', 1); row(-28, -99.6, -114, -99.6, 9.5, 'b', .9);
-    label('运动场地（新建）', -74, -63, 4);
     shift(0);
 
     /* --- 教师宿舍（桃李园，校园西南） --- */
     const stRes = [0, 1, 2, 3].map(i => ({ win: m['faRes' + i], cor: m['faRes' + i], end: m['faRes' + i], wall: m.wGrey, par: m.wGrey, cap: m.wGrey }));
     B.rot(-149, -98, 27); wing({ X0: -174, X1: -124, Y0: -105, Y1: -91, fl: 6, fh: 3, bw: 3.6, st: stRes[0], noCol: true, noPlan: true }); B.rot();
-    col(-170, -128, -111, -85); plan(-170, -128, -108, -88, '#d9d6cf'); label('教师宿舍（桃李园）', -149, -98, 21);
+    col(-170, -128, -111, -85); plan(-170, -128, -108, -88, '#d9d6cf');
     scatter(-183, -123, -68, -32, 28, 'b', 1.2); scatter(-190, -156, 36, 108, 22, 'b', 1.2);
 
     /* --- 周边城市与山林 --- */

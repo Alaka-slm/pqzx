@@ -5,7 +5,7 @@
      原点 = 百度地图“台山市鹏权中学”POI 点
    three.js 世界坐标：x = X，z = -Y，y = 高度 */
 (function () {
-  const PQ = window.PQ = { mats: {}, colliders: [], labels: [], plan: [], spots: [], trees: [], surfaces: [] };
+  const PQ = window.PQ = { mats: {}, colliders: [], plan: [], spots: [], trees: [], surfaces: [] };
 
   PQ.loadThree = async function (onStatus) {
     if (window.THREE && window.THREE.WebGLRenderer) return window.THREE;   // 本地 vendor/three.global.js 已加载（离线可用）
